@@ -13,12 +13,12 @@ func scCertShow() *subcommand {
 
 	certIn := flagset.String("in", "", "path to PEM file")
 
-	run := func() {
+	run := func() error {
 		if len(*certIn) == 0 {
-			fmt.Fprintln(os.Stderr, "ERR: -in is required")
-			return
+			return fmt.Errorf("-in is required")
 		}
 		fmt.Printf("Loading cert from %s\n", *certIn)
+		return nil
 	}
 
 	certShowCommand := subcommand{
@@ -32,10 +32,10 @@ func scRun() *subcommand {
 	flagset := flag.NewFlagSet("run", flag.ExitOnError)
 	args := commonArgs{}
 	commonFlags(flagset, &args)
-	run := func() {
+	run := func() error {
 		fmt.Println("Hello run!")
 		fmt.Printf("Should use config from %s\n", args.config)
-
+		return nil
 	}
 
 	runCommand := subcommand{
@@ -47,9 +47,14 @@ func scRun() *subcommand {
 }
 
 func subcommands() []*subcommand {
-	return []*subcommand{scCertShow(), scRun()}
+	return []*subcommand{certShowSubcommand(), scRun()}
 }
 
 func main() {
-	runWithArgsAndSubcommands(os.Args, subcommands())
+	err := runWithArgsAndSubcommands(os.Args, subcommands())
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to run %s: %v\n", os.Args, err)
+	}
+
 }

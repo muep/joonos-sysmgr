@@ -12,7 +12,7 @@ type commonArgs struct {
 
 type subcommand struct {
 	flagset *flag.FlagSet
-	run     func()
+	run     func() error
 }
 
 func subcmdByName(subcmds []*subcommand, name string) *subcommand {
@@ -41,17 +41,16 @@ func mainUsage(dest *os.File, selfName string, subcmds []*subcommand) {
 	}
 }
 
-func runWithArgsAndSubcommands(args []string, subcmds []*subcommand) {
+func runWithArgsAndSubcommands(args []string, subcmds []*subcommand) error {
 	argCnt := len(args)
 
 	if argCnt == 0 {
-		fmt.Fprintln(os.Stderr, "ERR: expected to have an argument list")
-		return
+		return fmt.Errorf("expected to have an argument list")
 	}
 
 	if argCnt <= 1 {
 		mainUsage(os.Stdout, args[0], subcmds)
-		return
+		return nil
 	}
 
 	subcmdName := args[1]
@@ -60,14 +59,13 @@ func runWithArgsAndSubcommands(args []string, subcmds []*subcommand) {
 	if subcmd == nil {
 		fmt.Fprintf(os.Stderr, "Unrecognized subcommand \"%s\"\n", subcmdName)
 		mainUsage(os.Stderr, args[0], subcmds)
-		return
+		return nil
 	}
 
 	err := subcmd.flagset.Parse(args[2:])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Got err")
-		return
+		return fmt.Errorf("Failed to parse arguments: %w", err)
 	}
 
-	subcmd.run()
+	return subcmd.run()
 }
