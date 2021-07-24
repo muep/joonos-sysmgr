@@ -47,7 +47,6 @@ func scRun() *subcommand {
 }
 
 func subcommands() []*subcommand {
-
 	return []*subcommand{scCertShow(), scRun()}
 }
 
