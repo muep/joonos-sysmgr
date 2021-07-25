@@ -6,28 +6,6 @@ import (
 	"os"
 )
 
-func scCertShow() *subcommand {
-	flagset := flag.NewFlagSet("cert-show", flag.ExitOnError)
-	args := commonArgs{}
-	commonFlags(flagset, &args)
-
-	certIn := flagset.String("in", "", "path to PEM file")
-
-	run := func() error {
-		if len(*certIn) == 0 {
-			return fmt.Errorf("-in is required")
-		}
-		fmt.Printf("Loading cert from %s\n", *certIn)
-		return nil
-	}
-
-	certShowCommand := subcommand{
-		flagset: flagset,
-		run:     run,
-	}
-	return &certShowCommand
-}
-
 func scRun() *subcommand {
 	flagset := flag.NewFlagSet("run", flag.ExitOnError)
 	args := commonArgs{}
