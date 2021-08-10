@@ -6,10 +6,10 @@ import (
 )
 
 type config struct {
-	cacert   string
-	provcert string
-	provkey  string
-	datadir  string
+	Cacert   string `json:"ca-cert"`
+	Provcert string `json:"provisioning-cert"`
+	Provkey  string `json:"provisioning-key"`
+	Datadir  string `json:"data-directory"`
 }
 
 func configLoad(path string) (config, error) {
