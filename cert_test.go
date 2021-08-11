@@ -6,7 +6,7 @@ import (
 )
 
 func Test_certDecodePem(t *testing.T) {
-	const src = "test-files/wikipedia.cert.pem"
+	const src = "test-files/ca.cert.pem"
 	pemBytes, err := ioutil.ReadFile(src)
 	if err != nil {
 		t.Fatalf("Failed to read %s: %v", src, err)
