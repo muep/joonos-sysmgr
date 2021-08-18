@@ -27,3 +27,11 @@ func configLoad(path string) (config, error) {
 
 	return conf, nil
 }
+
+func (c config) Nodecert() string {
+	return c.Datadir + "/node.cert.pem"
+}
+
+func (c config) Nodekey() string {
+	return c.Datadir + "/node.key.pem"
+}
