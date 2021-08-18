@@ -41,14 +41,48 @@ func certShow(cert *x509.Certificate) {
 	fmt.Printf("Certificate of %s, issued by %s\n", cert.Subject, cert.Issuer)
 }
 
-func certShowFromPath(path string) error {
-	fmt.Printf("Loading cert from %s\n", path)
-	pemBytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
+func certShowRaw(certificates [][]byte) error {
+	for _, cert := range certificates {
+		parsed, err := x509.ParseCertificate(cert)
+		if err != nil {
+			return err
+		}
+		certShow(parsed)
 	}
 
-	certificates, err := certDecodePem(pemBytes)
+	return nil
+}
+
+func certLoadFromPath(path string) ([]*x509.Certificate, error) {
+	pemBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return certDecodePem(pemBytes)
+}
+
+func certLoadOneFromPath(path string) (*x509.Certificate, error) {
+	certs, err := certLoadFromPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	certCnt := len(certs)
+
+	if certCnt != 1 {
+		return nil, fmt.Errorf(
+			"Expected %s to contain one certificate, got %d",
+			path,
+			certCnt,
+		)
+	}
+
+	return certs[0], nil
+}
+
+func certShowFromPath(path string) error {
+	certificates, err := certLoadFromPath(path)
 	if err != nil {
 		return err
 	}
