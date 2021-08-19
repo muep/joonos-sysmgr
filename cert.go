@@ -171,7 +171,7 @@ func certWriteChain(dest string, certs []*x509.Certificate) error {
 func certWriteKey(dest string, key interface{}) error {
 	keybytes, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		fmt.Errorf("Failed to marshal key: %w", err)
+		return fmt.Errorf("Failed to marshal key: %w", err)
 	}
 
 	keyblock := pem.Block{
