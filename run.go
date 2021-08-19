@@ -1,26 +1,9 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"fmt"
-	"os"
 )
-
-func runCheckDatadir(datadir string) error {
-	ddirStat, err := os.Stat(datadir)
-
-	if err == nil && ddirStat.IsDir() {
-		return nil
-	}
-
-	if !os.IsNotExist(err) {
-		// Some error that can not be addressed by attempting the creation
-		return err
-	}
-
-	return os.Mkdir(datadir, 0700)
-}
 
 func runWithConfig(configPath string) error {
 	fmt.Printf("Loading configuration from %s...\n", configPath)
@@ -29,59 +12,22 @@ func runWithConfig(configPath string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to load configuration: %w", err)
 	}
-	fmt.Println("Configuration loaded")
+	fmt.Println("Configuration loaded. Initializing state...")
 
-	err = runCheckDatadir(config.Datadir)
+	state, err := stateLoad(config)
 	if err != nil {
-		return fmt.Errorf("Data directory is not available: %w", err)
+		return fmt.Errorf("Failed to initialize state: %w", err)
 	}
 
-	cacert, err := certLoadOneFromPath(config.Cacert)
-	if err != nil {
-		return err
-	}
+	fmt.Println("State initialized")
 
-	fmt.Printf("From %s loaded root CA certificate:\n", config.Cacert)
-	certShow(cacert)
-
-	provcert, err := tls.LoadX509KeyPair(config.Provcert, config.Provkey)
-	if err != nil {
-		return err
-	}
-
-	usecert := &provcert
-
-	fmt.Printf(
-		"From\n %s and\n %s\nloaded provisioning certificate:\n",
-		config.Provcert,
-		config.Provkey,
-	)
-
-	certShowRaw(provcert.Certificate)
-
-	nodecert, err := tls.LoadX509KeyPair(config.Nodecert(), config.Nodekey())
-	if err == nil {
-		usecert = &nodecert
-
-		fmt.Printf(
-			"From\n %s and\n %s\nloaded node certificate:\n",
-			config.Nodecert(),
-			config.Nodekey(),
-		)
-		certShowRaw(nodecert.Certificate)
-	} else {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		fmt.Printf("Could not load the node certificate\n")
-		fmt.Printf("Should attempt to provision a new one\n")
-		// In case the certificate was simply absent, we can should attempt
-		// continuing with the provisioning cert
+	if state.nodecert == nil {
+		fmt.Println("Node certificate is not present.")
+		fmt.Println("Loading failed because:", state.nodecerterr)
 	}
 
 	fmt.Printf("Connection should be done with this certificate:\n")
-	certShowRaw(usecert.Certificate)
+	certShowRaw(state.tlscert().Certificate)
 
 	return nil
 }

@@ -10,6 +10,7 @@ type config struct {
 	Provcert string `json:"provisioning-cert"`
 	Provkey  string `json:"provisioning-key"`
 	Datadir  string `json:"data-directory"`
+	Nodename string `json:"node-name"`
 }
 
 func configLoad(path string) (config, error) {

@@ -6,7 +6,12 @@ import (
 )
 
 func main() {
-	subcommands := []*subcommand{certShowSubcommand(), runSubcommand()}
+	subcommands := []*subcommand{
+		certShowSubcommand(),
+		offlineSubcommand(),
+		runSubcommand(),
+	}
+
 	err := runWithArgsAndSubcommands(os.Args, subcommands)
 
 	if err != nil {
