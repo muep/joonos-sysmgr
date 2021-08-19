@@ -66,22 +66,6 @@ func certDecodePem(pemBytes []byte) ([]*x509.Certificate, error) {
 	return res, nil
 }
 
-func certShow(cert *x509.Certificate) {
-	fmt.Printf("Certificate of %s, issued by %s\n", cert.Subject, cert.Issuer)
-}
-
-func certShowRaw(certificates [][]byte) error {
-	for _, cert := range certificates {
-		parsed, err := x509.ParseCertificate(cert)
-		if err != nil {
-			return err
-		}
-		certShow(parsed)
-	}
-
-	return nil
-}
-
 func certLoadFromPath(path string) ([]*x509.Certificate, error) {
 	pemBytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -110,6 +94,10 @@ func certLoadOneFromPath(path string) (*x509.Certificate, error) {
 	return certs[0], nil
 }
 
+func certShow(cert *x509.Certificate) {
+	fmt.Printf("Certificate of %s, issued by %s\n", cert.Subject, cert.Issuer)
+}
+
 func certShowFromPath(path string, cacertPath string) error {
 	cacert, err := certLoadOneFromPath(cacertPath)
 	if err != nil {
@@ -133,6 +121,18 @@ func certShowFromPath(path string, cacertPath string) error {
 	return nil
 }
 
+func certShowRaw(certificates [][]byte) error {
+	for _, cert := range certificates {
+		parsed, err := x509.ParseCertificate(cert)
+		if err != nil {
+			return err
+		}
+		certShow(parsed)
+	}
+
+	return nil
+}
+
 func certShowSubcommand() *subcommand {
 	flagset := flag.NewFlagSet("cert-show", flag.ExitOnError)
 
@@ -151,6 +151,16 @@ func certShowSubcommand() *subcommand {
 		run:     run,
 	}
 	return &certShowCommand
+}
+
+func certVerifyChain(
+	certs []*x509.Certificate,
+	cacert *x509.Certificate) ([]*x509.Certificate, error) {
+
+	leaf := certs[0]
+	intermediates := certs[1:]
+
+	return certVerifyLeafIntermediatesCa(leaf, intermediates, cacert)
 }
 
 func certVerifyLeafIntermediatesCa(
@@ -195,16 +205,6 @@ func certVerifyLeafIntermediatesCa(
 	}
 
 	return chain, nil
-}
-
-func certVerifyChain(
-	certs []*x509.Certificate,
-	cacert *x509.Certificate) ([]*x509.Certificate, error) {
-
-	leaf := certs[0]
-	intermediates := certs[1:]
-
-	return certVerifyLeafIntermediatesCa(leaf, intermediates, cacert)
 }
 
 func certWriteChain(dest string, certs []*x509.Certificate) error {
