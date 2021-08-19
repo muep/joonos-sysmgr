@@ -1,12 +1,41 @@
 package main
 
 import (
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 )
+
+func certCheckKeyMatch(cert *x509.Certificate, key interface{}) error {
+	if key == nil {
+		return fmt.Errorf("Key is not set")
+	}
+
+	if cert == nil {
+		return fmt.Errorf("Main cert is not set")
+	}
+
+	rsakey, isRsakey := key.(*rsa.PrivateKey)
+	if !isRsakey {
+		return fmt.Errorf("Check is only implemented for RSA keys")
+	}
+
+	switch pub := cert.PublicKey.(type) {
+	case *rsa.PublicKey:
+		if pub.N.Cmp(rsakey.N) != 0 {
+			return fmt.Errorf("Private key does not match")
+		}
+		break
+	default:
+		return fmt.Errorf("Expected cert with an RSA key")
+	}
+
+	return nil
+}
 
 func certDecodePem(pemBytes []byte) ([]*x509.Certificate, error) {
 	const expectedType = "CERTIFICATE"
@@ -113,4 +142,58 @@ func certShowSubcommand() *subcommand {
 		run:     run,
 	}
 	return &certShowCommand
+}
+
+func certWriteChain(dest string, certs []*x509.Certificate) error {
+	certfile, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf(
+			"Failed to create %s: %w",
+			dest,
+			err,
+		)
+	}
+
+	defer certfile.Close()
+
+	for _, cert := range certs {
+		certblock := pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		}
+
+		err = pem.Encode(certfile, &certblock)
+	}
+
+	return nil
+}
+
+func certWriteKey(dest string, key interface{}) error {
+	keybytes, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		fmt.Errorf("Failed to marshal key: %w", err)
+	}
+
+	keyblock := pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: keybytes,
+	}
+
+	keyfile, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf(
+			"Failed to create %s: %w",
+			dest,
+			err,
+		)
+	}
+
+	defer keyfile.Close()
+
+	err = pem.Encode(keyfile, &keyblock)
+	if err != nil {
+		return fmt.Errorf("Failed to encode key to %s: %w", dest, err)
+	}
+
+	return nil
 }

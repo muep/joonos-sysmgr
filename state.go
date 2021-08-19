@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"os"
 )
@@ -14,6 +17,7 @@ type state struct {
 	nodename    string
 	nodecert    *tls.Certificate
 	nodecerterr error
+	csrkey      interface{}
 }
 
 func stateLoad(config config) (state, error) {
@@ -76,6 +80,89 @@ func stateLoad(config config) (state, error) {
 	res.nodename = nodename
 
 	return res, nil
+}
+
+func (s *state) csr() (*x509.CertificateRequest, error) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, err
+	}
+
+	subject := pkix.Name{
+		CommonName: s.nodename,
+	}
+	template := x509.CertificateRequest{
+		Subject: subject,
+	}
+
+	csrb, err := x509.CreateCertificateRequest(rand.Reader, &template, key)
+	if err != nil {
+		return nil, err
+	}
+
+	csr, err := x509.ParseCertificateRequest(csrb)
+	if err != nil {
+		return nil, err
+	}
+
+	s.csrkey = key
+
+	return csr, nil
+}
+
+func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Certificate) error {
+	caPool := x509.NewCertPool()
+	caPool.AddCert(s.cacert)
+
+	intermediatePool := x509.NewCertPool()
+	for _, imdt := range intermediates {
+		intermediatePool.AddCert(imdt)
+	}
+
+	opts := x509.VerifyOptions{
+		Intermediates: intermediatePool,
+		Roots:         caPool,
+	}
+
+	chains, err := cert.Verify(opts)
+	if err != nil {
+		return fmt.Errorf("Failed to verify the supplied certificate: %w", err)
+	}
+
+	if len(chains) != 1 {
+		return fmt.Errorf("Expected one chain, got %d", len(chains))
+	}
+
+	chain := chains[0]
+
+	expectedChainLen := len(intermediates) + 2
+	if len(chain) != expectedChainLen {
+		for _, c := range chain {
+			certShow(c)
+		}
+		return fmt.Errorf(
+			"Expected %d certs in the chain, got %d",
+			expectedChainLen,
+			len(chain),
+		)
+	}
+
+	err = certCheckKeyMatch(cert, s.csrkey)
+	if err != nil {
+		return fmt.Errorf("Could not match certificate to CSR key: %w", err)
+	}
+
+	err = certWriteKey(s.config.Nodekey(), s.csrkey)
+	if err != nil {
+		return fmt.Errorf("Failed to store key: %w", err)
+	}
+
+	err = certWriteChain(s.config.Nodecert(), chain[:len(chain)-1])
+	if err != nil {
+		return fmt.Errorf("Failed to store cert chain: %w", err)
+	}
+
+	return nil
 }
 
 func (s state) tlscert() *tls.Certificate {
