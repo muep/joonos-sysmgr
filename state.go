@@ -4,12 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"os"
 )
 
 type state struct {
 	config      config
 	cacert      *x509.Certificate
 	provcert    tls.Certificate
+	nodename    string
 	nodecert    *tls.Certificate
 	nodecerterr error
 }
@@ -57,10 +59,21 @@ func stateLoad(config config) (state, error) {
 		nodecertptr = &nodecert
 	}
 
+	nodename := config.Nodename
+	if len(nodename) == 0 {
+		hostname, err := os.Hostname()
+		if err != nil {
+			return res, err
+		}
+
+		nodename = hostname
+	}
+
 	res.cacert = cacert
 	res.provcert = provcert
 	res.nodecert = nodecertptr
 	res.nodecerterr = nodecerterr
+	res.nodename = nodename
 
 	return res, nil
 }
