@@ -111,40 +111,9 @@ func (s *state) csr() (*x509.CertificateRequest, error) {
 }
 
 func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Certificate) error {
-	caPool := x509.NewCertPool()
-	caPool.AddCert(s.cacert)
-
-	intermediatePool := x509.NewCertPool()
-	for _, imdt := range intermediates {
-		intermediatePool.AddCert(imdt)
-	}
-
-	opts := x509.VerifyOptions{
-		Intermediates: intermediatePool,
-		Roots:         caPool,
-	}
-
-	chains, err := cert.Verify(opts)
+	chain, err := certVerifyLeafIntermediatesCa(cert, intermediates, s.cacert)
 	if err != nil {
 		return fmt.Errorf("Failed to verify the supplied certificate: %w", err)
-	}
-
-	if len(chains) != 1 {
-		return fmt.Errorf("Expected one chain, got %d", len(chains))
-	}
-
-	chain := chains[0]
-
-	expectedChainLen := len(intermediates) + 2
-	if len(chain) != expectedChainLen {
-		for _, c := range chain {
-			certShow(c)
-		}
-		return fmt.Errorf(
-			"Expected %d certs in the chain, got %d",
-			expectedChainLen,
-			len(chain),
-		)
 	}
 
 	err = certCheckKeyMatch(cert, s.csrkey)

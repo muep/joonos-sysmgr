@@ -66,22 +66,6 @@ func certDecodePem(pemBytes []byte) ([]*x509.Certificate, error) {
 	return res, nil
 }
 
-func certShow(cert *x509.Certificate) {
-	fmt.Printf("Certificate of %s, issued by %s\n", cert.Subject, cert.Issuer)
-}
-
-func certShowRaw(certificates [][]byte) error {
-	for _, cert := range certificates {
-		parsed, err := x509.ParseCertificate(cert)
-		if err != nil {
-			return err
-		}
-		certShow(parsed)
-	}
-
-	return nil
-}
-
 func certLoadFromPath(path string) ([]*x509.Certificate, error) {
 	pemBytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -110,14 +94,40 @@ func certLoadOneFromPath(path string) (*x509.Certificate, error) {
 	return certs[0], nil
 }
 
-func certShowFromPath(path string) error {
-	certificates, err := certLoadFromPath(path)
+func certShow(cert *x509.Certificate) {
+	fmt.Printf("Certificate of %s, issued by %s\n", cert.Subject, cert.Issuer)
+}
+
+func certShowFromPath(path string, cacertPath string) error {
+	cacert, err := certLoadOneFromPath(cacertPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to load CA cert from %s: %w", cacertPath, err)
 	}
 
-	for _, cert := range certificates {
+	certificates, err := certLoadFromPath(path)
+	if err != nil {
+		return fmt.Errorf("Failed to load certs from %s: %w", path, err)
+	}
+
+	chain, err := certVerifyChain(certificates, cacert)
+	if err != nil {
+		return fmt.Errorf("Failed to verify certs from %s, %s: %w", path, cacertPath, err)
+	}
+
+	for _, cert := range chain {
 		certShow(cert)
+	}
+
+	return nil
+}
+
+func certShowRaw(certificates [][]byte) error {
+	for _, cert := range certificates {
+		parsed, err := x509.ParseCertificate(cert)
+		if err != nil {
+			return err
+		}
+		certShow(parsed)
 	}
 
 	return nil
@@ -125,16 +135,15 @@ func certShowFromPath(path string) error {
 
 func certShowSubcommand() *subcommand {
 	flagset := flag.NewFlagSet("cert-show", flag.ExitOnError)
-	args := commonArgs{}
-	commonFlags(flagset, &args)
 
 	certIn := flagset.String("in", "", "path to PEM file")
+	cacertIn := flagset.String("cacert", "", "path to PEM file")
 
 	run := func() error {
 		if len(*certIn) == 0 {
 			return fmt.Errorf("The -in parameter is required")
 		}
-		return certShowFromPath(*certIn)
+		return certShowFromPath(*certIn, *cacertIn)
 	}
 
 	certShowCommand := subcommand{
@@ -142,6 +151,60 @@ func certShowSubcommand() *subcommand {
 		run:     run,
 	}
 	return &certShowCommand
+}
+
+func certVerifyChain(
+	certs []*x509.Certificate,
+	cacert *x509.Certificate) ([]*x509.Certificate, error) {
+
+	leaf := certs[0]
+	intermediates := certs[1:]
+
+	return certVerifyLeafIntermediatesCa(leaf, intermediates, cacert)
+}
+
+func certVerifyLeafIntermediatesCa(
+	leaf *x509.Certificate,
+	intermediates []*x509.Certificate,
+	cacert *x509.Certificate) ([]*x509.Certificate, error) {
+
+	caPool := x509.NewCertPool()
+	caPool.AddCert(cacert)
+
+	intermediatePool := x509.NewCertPool()
+	for _, imdt := range intermediates {
+		intermediatePool.AddCert(imdt)
+	}
+
+	opts := x509.VerifyOptions{
+		Intermediates: intermediatePool,
+		Roots:         caPool,
+	}
+
+	chains, err := leaf.Verify(opts)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to verify the supplied certificate: %w", err)
+	}
+
+	if len(chains) != 1 {
+		return nil, fmt.Errorf("Expected one chain, got %d", len(chains))
+	}
+
+	chain := chains[0]
+
+	expectedChainLen := len(intermediates) + 2
+	if len(chain) != expectedChainLen {
+		for _, c := range chain {
+			certShow(c)
+		}
+		return nil, fmt.Errorf(
+			"Expected %d certs in the chain, got %d",
+			expectedChainLen,
+			len(chain),
+		)
+	}
+
+	return chain, nil
 }
 
 func certWriteChain(dest string, certs []*x509.Certificate) error {
