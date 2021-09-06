@@ -154,9 +154,22 @@ func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Cer
 }
 
 func (s state) tlscert() *tls.Certificate {
-	if s.nodecert != nil {
-		return s.nodecert
+	cert := s.nodecert
+	if cert == nil {
+		cert = &s.provcert
 	}
 
-	return &s.provcert
+	return cert
+}
+
+func (s state) tlsconfig() *tls.Config {
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(s.cacert)
+
+	config := &tls.Config{
+		Certificates:       []tls.Certificate{*s.tlscert()},
+		RootCAs:            rootCAs,
+	}
+
+	return config
 }
