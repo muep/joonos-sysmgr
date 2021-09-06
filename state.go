@@ -52,6 +52,15 @@ func stateLoad(config config) (state, error) {
 			err,
 		)
 	}
+	provcertLeaf, err := x509.ParseCertificate(provcert.Certificate[0])
+	if err != nil {
+		return res, fmt.Errorf(
+			"Failed to parse leaf certificate from %s: %w",
+			config.Provcert,
+			err,
+		)
+	}
+	provcert.Leaf = provcertLeaf
 
 	nodecert, nodecerterr := tls.LoadX509KeyPair(
 		config.Nodecert(),
@@ -61,6 +70,16 @@ func stateLoad(config config) (state, error) {
 	var nodecertptr *tls.Certificate = nil
 	if nodecerterr == nil {
 		nodecertptr = &nodecert
+
+		nodecertLeaf, err := x509.ParseCertificate(nodecert.Certificate[0])
+		if err != nil {
+			return res, fmt.Errorf(
+				"Failed to parse leaf certificate from %s: %w",
+				config.Nodecert(),
+				err,
+			)
+		}
+		nodecertptr.Leaf = nodecertLeaf
 	}
 
 	nodename := config.Nodename
