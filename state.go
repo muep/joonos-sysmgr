@@ -167,8 +167,8 @@ func (s state) tlsconfig() *tls.Config {
 	rootCAs.AddCert(s.cacert)
 
 	config := &tls.Config{
-		Certificates:       []tls.Certificate{*s.tlscert()},
-		RootCAs:            rootCAs,
+		Certificates: []tls.Certificate{*s.tlscert()},
+		RootCAs:      rootCAs,
 	}
 
 	return config

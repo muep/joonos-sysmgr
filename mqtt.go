@@ -79,11 +79,11 @@ func mqttConnectSubcmd() *subcommand {
 		return mqttConnectSubcmdWithConfig(args.config)
 	}
 
-	certShowCommand := subcommand{
+	mqttConnectCommand := subcommand{
 		flagset: flagset,
 		run:     run,
 	}
-	return &certShowCommand
+	return &mqttConnectCommand
 }
 
 func mqttConnectSubcmdWithConfig(configPath string) error {
