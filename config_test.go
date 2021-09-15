@@ -6,10 +6,10 @@ import (
 
 func TestConfigLoad(t *testing.T) {
 	const src = "test-files/joonos.json"
-	const expectedCacert = "/etc/joonos/ca.cert.pem"
-	const expectedProvcert = "/etc/joonos/provisioning.cert.pem"
-	const expectedProvkey = "/etc/joonos/provisioning.key.pem"
-	const expectedDatadir = "/var/lib/joonos-sysmgr"
+	const expectedCacert = "test-files/ca.cert.pem"
+	const expectedProvcert = "test-files/unprovisioned.cert.pem"
+	const expectedProvkey = "test-files/unprovisioned.key.pem"
+	const expectedDatadir = "test-files/tmp"
 
 	conf, err := configLoad(src)
 	if err != nil {
