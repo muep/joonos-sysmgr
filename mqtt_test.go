@@ -4,22 +4,34 @@ import (
 	"testing"
 )
 
-func TestMqttConnect(t *testing.T) {
-	const configPath = "test-files/joonos.json"
-	config, err := configLoad(configPath)
-	if err != nil {
-		t.Fatalf("Failed to read %s: %v", configPath, err)
-	}
-
+func mqttParamsUsingConfig(config config) (mqttparams, error) {
 	state, err := stateLoad(config)
 	if err != nil {
-		t.Fatalf("Failed to load state: %v", err)
+		return mqttparams{}, err
 	}
 
-	mqttconf := mqttparams{
+	params := mqttparams{
 		nodename: state.nodename,
-		server:   state.config.Mqttsrv,
+		server:   config.Mqttsrv,
 		tlsconf:  state.tlsconfig(),
+	}
+	return params, nil
+}
+
+func mqttParamsUsingConfigFrom(configPath string) (mqttparams, error) {
+	config, err := configLoad(configPath)
+	if err != nil {
+		return mqttparams{}, err
+	}
+
+	return mqttParamsUsingConfig(config)
+}
+
+func TestMqttConnect(t *testing.T) {
+	const configPath = "test-files/joonos.json"
+	mqttconf, err := mqttParamsUsingConfigFrom(configPath)
+	if err != nil {
+		t.Fatalf("Failed to get mqtt params %v", err)
 	}
 
 	conres, err := mqttConnect(0, mqttconf, nil)
@@ -34,24 +46,20 @@ func TestMqttConnect(t *testing.T) {
 	conres.client.Disconnect(0)
 }
 
-func TestMqttConnectBadSrv(t *testing.T) {
+func TestMqttConnectBadSrvname(t *testing.T) {
 	const configPath = "test-files/joonos.json"
 	config, err := configLoad(configPath)
 	if err != nil {
 		t.Fatalf("Failed to read %s: %v", configPath, err)
 	}
 
+	// This is expected to produce an error in the verification
+	// of the certificate
 	config.Mqttsrv = "tls://127.0.0.2:8884"
 
-	state, err := stateLoad(config)
+	mqttconf, err := mqttParamsUsingConfig(config)
 	if err != nil {
-		t.Fatalf("Failed to load state: %v", err)
-	}
-
-	mqttconf := mqttparams{
-		nodename: state.nodename,
-		server:   state.config.Mqttsrv,
-		tlsconf:  state.tlsconfig(),
+		t.Fatalf("Failed to get mqtt params %v", err)
 	}
 
 	conres, err := mqttConnect(0, mqttconf, nil)
