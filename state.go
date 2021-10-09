@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 )
 
 type state struct {
@@ -63,25 +64,13 @@ func stateLoad(config config) (state, error) {
 	}
 	provcert.Leaf = provcertLeaf
 
-	nodecert, nodecerterr := tls.LoadX509KeyPair(
+	nodecert, nodecerterr := stateLoadNodecert(
 		config.Nodecert(),
 		config.Nodekey(),
 	)
-
-	var nodecertptr *tls.Certificate = nil
-	if nodecerterr == nil {
-		nodecertptr = &nodecert
-
-		nodecertLeaf, err := x509.ParseCertificate(nodecert.Certificate[0])
-		if err != nil {
-			return res, fmt.Errorf(
-				"Failed to parse leaf certificate from %s: %w",
-				config.Nodecert(),
-				err,
-			)
-		}
-		nodecertptr.Leaf = nodecertLeaf
-	}
+	// Nodecerterr is something that is not handled at this time.
+	// The caller is expected to check it and make do without a
+	// good node cert, if necessary
 
 	nodename := config.Nodename
 	if len(nodename) == 0 {
@@ -95,11 +84,47 @@ func stateLoad(config config) (state, error) {
 
 	res.cacert = cacert
 	res.provcert = provcert
-	res.nodecert = nodecertptr
+	res.nodecert = nodecert
 	res.nodecerterr = nodecerterr
 	res.nodename = nodename
 
 	return res, nil
+}
+
+func stateLoadNodecert(certpath string, keypath string) (*tls.Certificate, error) {
+	nodecert, err := tls.LoadX509KeyPair(
+		certpath,
+		keypath,
+	)
+
+	if err != nil {
+		return &nodecert, err
+	}
+
+	leaf, err := x509.ParseCertificate(nodecert.Certificate[0])
+	if err != nil {
+		// This is not really expected to happen, given how
+		// the tls package already managed to parse it. The
+		// certificate is returned along with the error, just
+		// in case it turns out to be useful. The remaining
+		// checks here can not be done.
+		return &nodecert, fmt.Errorf(
+			"Failed to parse leaf certificate from %s: %w",
+			certpath,
+			err,
+		)
+	}
+
+	// At least MQTT code expects to use Subject from Leaf
+	// for producing the user name
+	nodecert.Leaf = leaf
+
+	notAfter := nodecert.Leaf.NotAfter
+	if time.Now().After(notAfter) {
+		return &nodecert, fmt.Errorf("Certificate expired on %s", notAfter)
+	}
+
+	return &nodecert, nil
 }
 
 func (s *state) csr() (*x509.CertificateRequest, error) {
@@ -157,6 +182,10 @@ func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Cer
 func (s state) tlscert() *tls.Certificate {
 	cert := s.nodecert
 	if cert == nil {
+		cert = &s.provcert
+	}
+
+	if s.nodecerterr != nil {
 		cert = &s.provcert
 	}
 
