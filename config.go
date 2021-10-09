@@ -10,6 +10,7 @@ type config struct {
 	Provcert string `json:"provisioning-cert"`
 	Provkey  string `json:"provisioning-key"`
 	Datadir  string `json:"data-directory"`
+	Mqttsrv  string `json:"mqtt-server"`
 	Nodename string `json:"node-name"`
 }
 

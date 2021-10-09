@@ -8,6 +8,7 @@ import (
 func main() {
 	subcommands := []*subcommand{
 		certShowSubcommand(),
+		mqttConnectSubcmd(),
 		offlineSubcommand(),
 		runSubcommand(),
 	}

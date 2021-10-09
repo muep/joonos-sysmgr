@@ -52,6 +52,15 @@ func stateLoad(config config) (state, error) {
 			err,
 		)
 	}
+	provcertLeaf, err := x509.ParseCertificate(provcert.Certificate[0])
+	if err != nil {
+		return res, fmt.Errorf(
+			"Failed to parse leaf certificate from %s: %w",
+			config.Provcert,
+			err,
+		)
+	}
+	provcert.Leaf = provcertLeaf
 
 	nodecert, nodecerterr := tls.LoadX509KeyPair(
 		config.Nodecert(),
@@ -61,6 +70,16 @@ func stateLoad(config config) (state, error) {
 	var nodecertptr *tls.Certificate = nil
 	if nodecerterr == nil {
 		nodecertptr = &nodecert
+
+		nodecertLeaf, err := x509.ParseCertificate(nodecert.Certificate[0])
+		if err != nil {
+			return res, fmt.Errorf(
+				"Failed to parse leaf certificate from %s: %w",
+				config.Nodecert(),
+				err,
+			)
+		}
+		nodecertptr.Leaf = nodecertLeaf
 	}
 
 	nodename := config.Nodename
@@ -135,9 +154,22 @@ func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Cer
 }
 
 func (s state) tlscert() *tls.Certificate {
-	if s.nodecert != nil {
-		return s.nodecert
+	cert := s.nodecert
+	if cert == nil {
+		cert = &s.provcert
 	}
 
-	return &s.provcert
+	return cert
+}
+
+func (s state) tlsconfig() *tls.Config {
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(s.cacert)
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{*s.tlscert()},
+		RootCAs:      rootCAs,
+	}
+
+	return config
 }

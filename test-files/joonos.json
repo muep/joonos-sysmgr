@@ -1,7 +1,7 @@
 {
-    "ca-cert": "/etc/joonos/ca.cert.pem",
-    "provisioning-cert": "/etc/joonos/provisioning.cert.pem",
-    "provisioning-key": "/etc/joonos/provisioning.key.pem",
-    "data-directory": "/var/lib/joonos-sysmgr",
-    "lol": "apua"
+    "ca-cert": "test-files/ca.cert.pem",
+    "provisioning-cert": "test-files/unprovisioned.cert.pem",
+    "provisioning-key": "test-files/unprovisioned.key.pem",
+    "data-directory": "test-files/tmp",
+    "mqtt-server": "tls://127.0.0.1:8884"
 }
