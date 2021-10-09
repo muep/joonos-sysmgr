@@ -5,8 +5,10 @@ The system manager is especially intended to obtain per-node
 certificates which then can ben used to authenticate JoonOS nodes to
 an MQTT server.
 
-It is envisioned that the system manager may also publish telemetry to
-the server, but this is yet to be defined.
+Development of the program is hosted on [sourcehut](https://sr.ht/),
+with these resources:
+- [git repository](https://git.sr.ht/~muep/joonos-sysmgr)
+- [issue tracking](https://todo.sr.ht/~muep/joonos-sysmgr)
 
 # Design decisions
 ## Implement in Go
@@ -18,12 +20,16 @@ but it is one option that meets these:
 - Program + runtime (if any) does not take too much storage space
 - Executing the program takes no more than few tens of MiB of RAM
 
-## Subcommands insteaf of multiple executables
+## Subcommands instead of multiple executables
 To support experimentation and potential additional use cases, the
 repository needs to be able to provide multiple commands.
 
-Since most of the extra functionality does not add much code but
-likely does reuse the same runtime. Placing these alternative modes
-into separate executables would make the space needed for the main
-functionality slightly smaller, but adding a second mode of operation
-could even double the storage space requirement.
+Most of the extra functionality does not add much code. Placing these
+alternative modes into separate executables would make the space
+needed for the main functionality slightly smaller, but adding a
+second mode of operation would lead to additional executables which
+then would need to bundle the Go runtime, or at least the libraries
+for MQTT connectivity.
+
+Deploying as a single executable is also convenient from point of view
+of writing bitbake recipes or other deployment tooling.
