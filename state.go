@@ -195,7 +195,12 @@ func stateShow(configpath string) error {
 	fmt.Println("   ", certDesc(state.provcert.Leaf))
 
 	fmt.Printf("  Node certificate [%s]:\n", state.config.Nodecert())
-	fmt.Println("   ", certDesc(state.nodecert.Leaf))
+	if state.nodecert == nil {
+		fmt.Println("    (absent)")
+	} else {
+		fmt.Println("   ", certDesc(state.nodecert.Leaf))
+	}
+
 	if state.nodecerterr != nil {
 		fmt.Printf("    Error: %s\n", state.nodecerterr)
 	}
