@@ -23,7 +23,9 @@ func runWithConfig(configPath string) error {
 
 	if state.nodecert == nil {
 		fmt.Println("Node certificate is not present.")
-		fmt.Println("Loading failed because:", state.nodecerterr)
+	}
+	if state.nodecerterr != nil {
+		fmt.Println("Node certificate problem:", state.nodecerterr)
 	}
 
 	fmt.Printf("Connection should be done with this certificate:\n")
