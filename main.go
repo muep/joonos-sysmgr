@@ -11,6 +11,7 @@ func main() {
 		mqttConnectSubcmd(),
 		offlineSubcommand(),
 		runSubcommand(),
+		stateShowSubcommand(),
 	}
 
 	err := runWithArgsAndSubcommands(os.Args, subcommands)

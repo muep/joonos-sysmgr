@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"flag"
 	"fmt"
 	"os"
 )
@@ -172,4 +173,48 @@ func (s state) tlsconfig() *tls.Config {
 	}
 
 	return config
+}
+
+func stateShow(configpath string) error {
+	config, err := configLoad(configpath)
+	if err != nil {
+		return fmt.Errorf("Failed to load config from %s: %w", configpath, err)
+	}
+
+	state, err := stateLoad(config)
+	if err != nil {
+		return fmt.Errorf("Failed to load state using config from %s: %w", configpath, err)
+	}
+
+	fmt.Printf("State for %s [%s]\n", state.nodename, configpath)
+
+	fmt.Printf("  CA certificate [%s]:\n", state.config.Cacert)
+	fmt.Println("   ", certDesc(state.cacert))
+
+	fmt.Printf("  Provisioning certificate [%s]:\n", state.config.Provcert)
+	fmt.Println("   ", certDesc(state.provcert.Leaf))
+
+	fmt.Printf("  Node certificate [%s]:\n", state.config.Nodecert())
+	fmt.Println("   ", certDesc(state.nodecert.Leaf))
+	if state.nodecerterr != nil {
+		fmt.Printf("    Error: %s\n", state.nodecerterr)
+	}
+
+	return nil
+}
+
+func stateShowSubcommand() *subcommand {
+	flagset := flag.NewFlagSet("state-show", flag.ExitOnError)
+	args := commonArgs{}
+	commonFlags(flagset, &args)
+
+	run := func() error {
+		return stateShow(args.config)
+	}
+
+	opCommand := subcommand{
+		flagset: flagset,
+		run:     run,
+	}
+	return &opCommand
 }

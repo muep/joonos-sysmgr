@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 func certCheckKeyMatch(cert *x509.Certificate, key interface{}) error {
@@ -66,6 +67,35 @@ func certDecodePem(pemBytes []byte) ([]*x509.Certificate, error) {
 	return res, nil
 }
 
+func certDesc(cert *x509.Certificate) string {
+	return fmt.Sprintf(
+		"%s, issued by %s%s",
+		cert.Subject,
+		cert.Issuer,
+		certDescValidityPeriod(cert),
+	)
+}
+
+func certDescValidityPeriod(cert *x509.Certificate) string {
+	now := time.Now()
+
+	if now.Before(cert.NotBefore) {
+		return fmt.Sprintf(" (becomes valid on %s)", cert.NotBefore)
+	}
+
+	if now.After(cert.NotAfter) {
+		return fmt.Sprintf(" (expired on %s)", cert.NotAfter)
+	}
+
+	remaining := cert.NotAfter.Sub(now)
+
+	return fmt.Sprintf(
+		" (Valid until %s, remaining %d days)",
+		cert.NotAfter,
+		int(remaining.Hours())/24,
+	)
+}
+
 func certLoadFromPath(path string) ([]*x509.Certificate, error) {
 	pemBytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -95,7 +125,7 @@ func certLoadOneFromPath(path string) (*x509.Certificate, error) {
 }
 
 func certShow(cert *x509.Certificate) {
-	fmt.Printf("Certificate of %s, issued by %s\n", cert.Subject, cert.Issuer)
+	fmt.Println("Certificate of", certDesc(cert))
 }
 
 func certShowFromPath(path string, cacertPath string) error {
