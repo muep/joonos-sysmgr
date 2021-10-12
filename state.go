@@ -155,6 +155,14 @@ func (s *state) csr() (*x509.CertificateRequest, error) {
 	return csr, nil
 }
 
+func (s state) mqttparams() mqttparams {
+	return mqttparams{
+		nodename: s.nodename,
+		server:   s.config.Mqttsrv,
+		tlsconf:  s.tlsconfig(),
+	}
+}
+
 func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Certificate) error {
 	chain, err := certVerifyLeafIntermediatesCa(cert, intermediates, s.cacert)
 	if err != nil {
@@ -176,7 +184,19 @@ func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Cer
 		return fmt.Errorf("Failed to store cert chain: %w", err)
 	}
 
+	// Reload the certificates right away
+	s.nodecert, s.nodecerterr = stateLoadNodecert(
+		s.config.Nodecert(),
+		s.config.Nodekey(),
+	)
+
 	return nil
+}
+
+func (s *state) setCertificates(certs []*x509.Certificate) error {
+	cert := certs[0]
+	intermediates := certs[1:]
+	return s.setCertificate(cert, intermediates)
 }
 
 func (s state) tlscert() *tls.Certificate {
@@ -202,6 +222,16 @@ func (s state) tlsconfig() *tls.Config {
 	}
 
 	return config
+}
+
+func (s state) certRenewTime() time.Duration {
+	if s.nodecert == nil || s.nodecerterr != nil {
+		return 0
+	}
+
+	renewDuration := time.Hour * 24 * 7
+
+	return time.Until(s.nodecert.Leaf.NotAfter.Add(-renewDuration))
 }
 
 func stateShow(configpath string) error {
