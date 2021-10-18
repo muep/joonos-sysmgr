@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -94,6 +95,15 @@ func certDescValidityPeriod(cert *x509.Certificate) string {
 		cert.NotAfter,
 		int(remaining.Hours())/24,
 	)
+}
+
+func certKeyEqual(keya crypto.PublicKey, keyb crypto.PublicKey) bool {
+	rsakeya, isRsakey := keya.(*rsa.PublicKey)
+	if isRsakey {
+		return rsakeya.Equal(keyb)
+	}
+
+	return false
 }
 
 func certLoadFromPath(path string) ([]*x509.Certificate, error) {

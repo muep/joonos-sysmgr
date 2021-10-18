@@ -197,15 +197,13 @@ func caRun(configpath string) error {
 			SerialNumber: serial,
 			NotBefore:    notBefore,
 			NotAfter:     notAfter,
-
-			RawSubjectPublicKeyInfo: csr.csr.RawSubjectPublicKeyInfo,
 		}
 
 		newcert, err := x509.CreateCertificate(
 			rand.Reader,
 			template,
 			signcert,
-			signcert.PublicKey,
+			csr.csr.PublicKey,
 			signkey,
 		)
 		if err != nil {
@@ -215,6 +213,11 @@ func caRun(configpath string) error {
 
 		parsedCert, err := x509.ParseCertificate(newcert)
 		if err != nil {
+			continue
+		}
+
+		if !certKeyEqual(parsedCert.PublicKey, csr.csr.PublicKey) {
+			fmt.Println("Generated for the wrong key?")
 			continue
 		}
 
