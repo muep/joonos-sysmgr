@@ -1,14 +1,20 @@
 package main
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math/big"
+	"strings"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -18,14 +24,22 @@ type ca struct {
 	pubkey  rsa.PublicKey
 }
 
+type cacsr struct {
+	from string
+	csr  *x509.CertificateRequest
+}
+
 type caconfig struct {
 	Cacert   string `json:"ca-cert"`
+	Datadir  string `json:"data-directory"`
 	Tlscert  string `json:"tls-cert"`
 	Tlskey   string `json:"tls-key"`
 	Signcert string `json:"sign-cert"`
 	Signkey  string `json:"sign-key"`
 	Mqttsrv  string `json:"mqtt-server"`
 }
+
+const certduration time.Duration = time.Hour * 24 * 30
 
 func caFlags(flagset *flag.FlagSet, args *commonArgs) {
 	flagset.StringVar(
@@ -89,6 +103,15 @@ func caRun(configpath string) error {
 		)
 	}
 
+	rootcert, err := certLoadOneFromPath(config.Cacert)
+	if err != nil {
+		return fmt.Errorf(
+			"Failed to load root CA cert from %s: %w",
+			config.Cacert,
+			err,
+		)
+	}
+
 	tlscert, err := tls.LoadX509KeyPair(config.Tlscert, config.Tlskey)
 	if err != nil {
 		return fmt.Errorf(
@@ -111,32 +134,142 @@ func caRun(configpath string) error {
 		return err
 	}
 
-	fmt.Println("loaded", signcert, "and", signkey)
-
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(config.Mqttsrv)
 	opts.SetAutoReconnect(false)
 	opts.SetUsername(tlsleaf.Subject.CommonName)
+	opts.SetTLSConfig(caTlsConfig(rootcert, tlscert))
 
 	client := mqtt.NewClient(opts)
-	client.Connect().Wait()
 
-	csrs := make(chan *x509.CertificateRequest)
+	clientConnect := client.Connect()
+	clientConnect.Wait()
+	err = clientConnect.Error()
+	if err != nil {
+		fmt.Printf("Failed to connect: %s\n", err)
+		return err
+	}
 
-	client.Subscribe("joonos/%/csr", 0, func(c mqtt.Client, m mqtt.Message) {
+	csrs := make(chan cacsr)
+
+	csrSub := client.Subscribe("joonos/+/csr", 1, func(c mqtt.Client, m mqtt.Message) {
+		sender, err := caSenderFromTopic(m.Topic())
+		if err != nil {
+			fmt.Printf("Failed to read sender: %v\n", err)
+			return
+		}
+
 		csr, err := x509.ParseCertificateRequest(m.Payload())
 		if err != nil {
 			fmt.Printf("Failed to parse CSR: %v\n", err)
 			return
 		}
-		csrs <- csr
-	}).Wait()
+		csrs <- cacsr{
+			from: sender,
+			csr:  csr,
+		}
+	})
+	csrSub.Wait()
+	err = csrSub.Error()
+	if err != nil {
+		fmt.Printf("Failed to subscribe: %s\n", err)
+		return err
+	}
+
+	serials := caSerialChan(config.Datadir + "/serial")
 
 	for {
 		csr := <-csrs
 
-		fmt.Println("Received CSR", csr)
+		commonName := csr.csr.Subject.CommonName
+
+		fmt.Println("Received CSR for", commonName, "from", csr.from)
+
+		notBefore := time.Now()
+		notAfter := notBefore.Add(certduration)
+
+		serial := big.NewInt(int64(<-serials))
+		subject := pkix.Name{
+			CommonName: commonName,
+		}
+		template := &x509.Certificate{
+			Subject:      subject,
+			SerialNumber: serial,
+			NotBefore:    notBefore,
+			NotAfter:     notAfter,
+
+			RawSubjectPublicKeyInfo: csr.csr.RawSubjectPublicKeyInfo,
+		}
+
+		newcert, err := x509.CreateCertificate(
+			rand.Reader,
+			template,
+			signcert,
+			signcert.PublicKey,
+			signkey,
+		)
+		if err != nil {
+			fmt.Printf("Failed to generate certificate for %s: %v", commonName, err)
+			continue
+		}
+
+		parsedCert, err := x509.ParseCertificate(newcert)
+		if err != nil {
+			continue
+		}
+
+		certTopic := fmt.Sprintf("joonos/%s/cert", csr.from)
+
+		fmt.Println("Publishing cert", parsedCert.SerialNumber, "of", parsedCert.Subject.CommonName, "on", certTopic)
+
+		newcert = append(newcert, signcert.Raw...)
+		client.Publish(certTopic, 1, false, newcert)
 	}
+}
+
+func caSenderFromTopic(topic string) (string, error) {
+	prefix := "joonos/"
+	suffix := "/csr"
+	if !strings.HasPrefix(topic, prefix) {
+		return "", fmt.Errorf("Expected topic to start with %s", prefix)
+	}
+
+	if !strings.HasSuffix(topic, suffix) {
+		return "", fmt.Errorf("Expected topic to end with %s", suffix)
+	}
+
+	return strings.TrimPrefix(strings.TrimSuffix(topic, suffix), prefix), nil
+}
+
+func caSerialChan(path string) <-chan uint64 {
+	state := caSerialInit(path)
+	buf := [8]byte{}
+	serials := make(chan uint64)
+
+	go func() {
+		for {
+			newSerial := state + 1
+			serials <- newSerial
+			state = newSerial
+			binary.LittleEndian.PutUint64(buf[:], newSerial)
+			ioutil.WriteFile(path, buf[:], 0600)
+		}
+	}()
+
+	return serials
+}
+
+func caSerialInit(path string) uint64 {
+	oldcontent, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 1
+	}
+
+	if len(oldcontent) != 8 {
+		return 1
+	}
+
+	return binary.LittleEndian.Uint64(oldcontent)
 }
 
 func caSubcommand() *subcommand {
@@ -152,4 +285,16 @@ func caSubcommand() *subcommand {
 		run:     run,
 	}
 	return &runCommand
+}
+
+func caTlsConfig(rootCert *x509.Certificate, tlscert tls.Certificate) *tls.Config {
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(rootCert)
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{tlscert},
+		RootCAs:      rootCAs,
+	}
+
+	return config
 }
