@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -185,48 +186,27 @@ func caRun(configpath string) error {
 
 		fmt.Println("Received CSR for", commonName, "from", csr.from)
 
-		notBefore := time.Now()
-		notAfter := notBefore.Add(certduration)
+		cert, err := caSign(serials, signcert, signkey, csr.csr, certduration)
 
-		serial := big.NewInt(int64(<-serials))
-		subject := pkix.Name{
-			CommonName: commonName,
-		}
-		template := &x509.Certificate{
-			Subject:      subject,
-			SerialNumber: serial,
-			NotBefore:    notBefore,
-			NotAfter:     notAfter,
-		}
-
-		newcert, err := x509.CreateCertificate(
-			rand.Reader,
-			template,
-			signcert,
-			csr.csr.PublicKey,
-			signkey,
-		)
 		if err != nil {
 			fmt.Printf("Failed to generate certificate for %s: %v", commonName, err)
 			continue
 		}
 
-		parsedCert, err := x509.ParseCertificate(newcert)
-		if err != nil {
-			continue
-		}
-
-		if !certKeyEqual(parsedCert.PublicKey, csr.csr.PublicKey) {
+		if !certKeyEqual(cert.PublicKey, csr.csr.PublicKey) {
 			fmt.Println("Generated for the wrong key?")
 			continue
 		}
 
 		certTopic := fmt.Sprintf("joonos/%s/cert", csr.from)
 
-		fmt.Println("Publishing cert", parsedCert.SerialNumber, "of", parsedCert.Subject.CommonName, "on", certTopic)
+		fmt.Println("Publishing cert", cert.SerialNumber, "of", cert.Subject.CommonName, "on", certTopic)
 
-		newcert = append(newcert, signcert.Raw...)
-		client.Publish(certTopic, 1, false, newcert)
+		certbytes := make([]byte, len(cert.Raw))
+		copy(certbytes, cert.Raw)
+		certbytes = append(certbytes, signcert.Raw...)
+
+		client.Publish(certTopic, 1, false, certbytes)
 	}
 }
 
@@ -273,6 +253,47 @@ func caSerialInit(path string) uint64 {
 	}
 
 	return binary.LittleEndian.Uint64(oldcontent)
+}
+
+func caSign(
+	serials <-chan uint64,
+	signcert *x509.Certificate,
+	signkey crypto.PrivateKey,
+	csr *x509.CertificateRequest,
+	duration time.Duration,
+) (*x509.Certificate, error) {
+	notBefore := time.Now()
+	notAfter := notBefore.Add(certduration)
+
+	serial := big.NewInt(int64(<-serials))
+	subject := pkix.Name{
+		CommonName: csr.Subject.CommonName,
+	}
+	template := &x509.Certificate{
+		Subject:      subject,
+		SerialNumber: serial,
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
+	}
+
+	newcert, err := x509.CreateCertificate(
+		rand.Reader,
+		template,
+		signcert,
+		csr.PublicKey,
+		signkey,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to issue certificate: %w", err)
+	}
+
+	parsedCert, err := x509.ParseCertificate(newcert)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse freshly issued certificate: %w", err)
+	}
+
+	return parsedCert, nil
 }
 
 func caSubcommand() *subcommand {
