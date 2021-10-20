@@ -11,6 +11,13 @@ with these resources:
 - [issue tracking](https://todo.sr.ht/~muep/joonos-sysmgr)
 
 # Design decisions
+## Layer over MQTT
+This arises from the idea of reusing some infrastructure in use cases
+where MQTT is used anyway.
+
+It might be reasonably simple to add some other mechanism directly
+over TLS.
+
 ## Implement in Go
 Go is not necessarily the prettiest programming language in existence,
 but it is one option that meets these:
