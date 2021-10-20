@@ -152,6 +152,11 @@ func caRun(configpath string, seconds int64) error {
 	csrs := make(chan cacsr)
 
 	csrSub := client.Subscribe("joonos/+/csr", 1, func(c mqtt.Client, m mqtt.Message) {
+		if len(m.Payload()) == 0 {
+			fmt.Println("Ignoring empty message on", m.Topic())
+			return
+		}
+
 		sender, err := caSenderFromTopic(m.Topic())
 		if err != nil {
 			fmt.Printf("Failed to read sender: %v\n", err)
