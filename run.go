@@ -35,10 +35,23 @@ func runWithConfig(configPath string) error {
 	mqttchans := mqttStartNode()
 	mqttchans.params <- state.mqttparams()
 
-	renewcert := time.After(state.certRenewTime())
+	var renewcert <-chan time.Time
 
 	for {
 		select {
+		case <-mqttchans.didconnect:
+			renewDuration := state.certRenewTime()
+			if renewDuration > time.Second {
+				// Supposedly we intend to keep the current certificate for
+				// some time, so let's be nice and clear out any dangling
+				// previous CSR.
+				mqttchans.csrs <- nil
+			}
+
+			// Could be rather immediately, or also quite some time in
+			// the future.
+			renewcert = time.After(renewDuration)
+
 		case msg := <-mqttchans.messages:
 			fmt.Printf("MQTT: %s\n", msg)
 		case <-renewcert:
@@ -60,6 +73,7 @@ func runWithConfig(configPath string) error {
 				fmt.Printf("Did not accept certificate: %v\n", err)
 			} else {
 				fmt.Printf("Updated certificate\n")
+				mqttchans.csrs <- nil
 				mqttchans.params <- state.mqttparams()
 				renewcert = time.After(state.certRenewTime())
 			}

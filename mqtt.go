@@ -27,15 +27,17 @@ type mqttparams struct {
 }
 
 type mqttservice struct {
-	params   chan<- mqttparams
-	messages <-chan string
-	csrs     chan<- *x509.CertificateRequest
-	certs    <-chan []*x509.Certificate
-	stop     chan<- struct{}
+	didconnect <-chan struct{}
+	params     chan<- mqttparams
+	messages   <-chan string
+	csrs       chan<- *x509.CertificateRequest
+	certs      <-chan []*x509.Certificate
+	stop       chan<- struct{}
 }
 
 func mqttRunOnce(
 	params mqttparams,
+	didconnect chan<- struct{},
 	messages chan<- string,
 	stop <-chan struct{},
 	csrsIn <-chan *x509.CertificateRequest,
@@ -70,6 +72,7 @@ func mqttRunOnce(
 
 			certsOut <- certs
 		}).Wait()
+		didconnect <- struct{}{}
 		messages <- fmt.Sprintf("Connected and subscribed.")
 	})
 
@@ -95,9 +98,15 @@ func mqttRunOnce(
 		messages <- fmt.Sprintf("Waiting for stuff")
 		select {
 		case csr := <-csrsIn:
-			messages <- fmt.Sprintf("Publishing to CSR")
-			client.Publish(topicCsr, 1, false, csr.Raw).Wait()
-			messages <- fmt.Sprintf("Published CSR to %s", topicCsr)
+			payload := []byte{}
+			if csr != nil {
+				payload = csr.Raw
+				messages <- fmt.Sprintf("Publishing CSR at %s", topicCsr)
+			} else {
+				messages <- fmt.Sprintf("Clearing csr at %s", topicCsr)
+			}
+			client.Publish(topicCsr, 1, true, payload).Wait()
+			messages <- fmt.Sprintf("Published to %s", topicCsr)
 		case <-stop:
 			keepgoing = false
 		}
@@ -105,6 +114,7 @@ func mqttRunOnce(
 }
 
 func mqttStartNode() mqttservice {
+	didconnect := make(chan struct{})
 	params := make(chan mqttparams)
 	messages := make(chan string, 50)
 	csrs := make(chan *x509.CertificateRequest)
@@ -115,18 +125,19 @@ func mqttStartNode() mqttservice {
 		parameters := <-params
 		for {
 			stopCurrent := make(chan struct{})
-			go mqttRunOnce(parameters, messages, stopCurrent, csrs, certs)
+			go mqttRunOnce(parameters, didconnect, messages, stopCurrent, csrs, certs)
 			parameters = <-params
 			stopCurrent <- struct{}{}
 		}
 	}()
 
 	return mqttservice{
-		messages: messages,
-		params:   params,
-		csrs:     csrs,
-		certs:    certs,
-		stop:     stop,
+		didconnect: didconnect,
+		messages:   messages,
+		params:     params,
+		csrs:       csrs,
+		certs:      certs,
+		stop:       stop,
 	}
 }
 

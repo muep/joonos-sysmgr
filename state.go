@@ -229,9 +229,10 @@ func (s state) certRenewTime() time.Duration {
 		return 0
 	}
 
-	renewDuration := time.Hour * 24 * 7
+	certDuration := s.nodecert.Leaf.NotAfter.Sub(s.nodecert.Leaf.NotBefore)
+	renewTime := s.nodecert.Leaf.NotBefore.Add(7 * certDuration / 8)
 
-	return time.Until(s.nodecert.Leaf.NotAfter.Add(-renewDuration))
+	return time.Until(renewTime)
 }
 
 func stateShow(configpath string) error {
