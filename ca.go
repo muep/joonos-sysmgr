@@ -40,8 +40,6 @@ type caconfig struct {
 	Mqttsrv  string `json:"mqtt-server"`
 }
 
-const certduration time.Duration = time.Hour * 24 * 30
-
 func caFlags(flagset *flag.FlagSet, args *commonArgs) {
 	flagset.StringVar(
 		&args.config,
@@ -84,7 +82,7 @@ func caLoadSigncert(signcertpath string, signkeypath string) (*x509.Certificate,
 	return signcert, signkey, nil
 }
 
-func caRun(configpath string) error {
+func caRun(configpath string, seconds int64) error {
 	configbytes, err := ioutil.ReadFile(configpath)
 	if err != nil {
 		return fmt.Errorf(
@@ -186,7 +184,7 @@ func caRun(configpath string) error {
 
 		fmt.Println("Received CSR for", commonName, "from", csr.from)
 
-		cert, err := caSign(serials, signcert, signkey, csr.csr, certduration)
+		cert, err := caSign(serials, signcert, signkey, csr.csr, time.Duration(seconds)*time.Second)
 
 		if err != nil {
 			fmt.Printf("Failed to generate certificate for %s: %v", commonName, err)
@@ -263,7 +261,7 @@ func caSign(
 	duration time.Duration,
 ) (*x509.Certificate, error) {
 	notBefore := time.Now()
-	notAfter := notBefore.Add(certduration)
+	notAfter := notBefore.Add(duration)
 
 	serial := big.NewInt(int64(<-serials))
 	subject := pkix.Name{
@@ -300,8 +298,15 @@ func caSubcommand() *subcommand {
 	flagset := flag.NewFlagSet("ca", flag.ExitOnError)
 	args := commonArgs{}
 	caFlags(flagset, &args)
+
+	seconds := flagset.Int64(
+		"seconds",
+		30*86400,
+		"Lifetime of the certificates which are to be issued, in seconds",
+	)
+
 	run := func() error {
-		return caRun(args.config)
+		return caRun(args.config, *seconds)
 	}
 
 	runCommand := subcommand{
