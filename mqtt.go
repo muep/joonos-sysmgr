@@ -108,9 +108,12 @@ func mqttRunOnce(
 			client.Publish(topicCsr, 1, true, payload).Wait()
 			messages <- fmt.Sprintf("Published to %s", topicCsr)
 		case <-stop:
+			messages <- "Closing down"
 			keepgoing = false
 		}
 	}
+
+	client.Disconnect(0)
 }
 
 func mqttStartNode() mqttservice {
