@@ -40,3 +40,8 @@ for MQTT connectivity.
 
 Deploying as a single executable is also convenient from point of view
 of writing bitbake recipes or other deployment tooling.
+
+## Include at least a minimal certificate authority
+This may help with automated testing, at least. The mechanism is
+simple enough that a more complete implementation can be written
+separately.
