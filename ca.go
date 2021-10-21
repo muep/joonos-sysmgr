@@ -265,7 +265,7 @@ func caSign(
 	csr *x509.CertificateRequest,
 	duration time.Duration,
 ) (*x509.Certificate, error) {
-	notBefore := time.Now()
+	notBefore := time.Now().Add(-5 * time.Second)
 	notAfter := notBefore.Add(duration)
 
 	serial := big.NewInt(int64(<-serials))
