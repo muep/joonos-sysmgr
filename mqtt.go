@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
@@ -21,25 +22,32 @@ type mqttconlost struct {
 }
 
 type mqttparams struct {
-	nodename string
-	server   string
-	tlsconf  *tls.Config
+	provisioning bool
+	nodename     string
+	server       string
+	tlsconf      *tls.Config
+}
+
+type mqttdidconnect struct {
+	provisioning bool
 }
 
 type mqttservice struct {
-	didconnect <-chan struct{}
+	didconnect <-chan mqttdidconnect
 	params     chan<- mqttparams
 	messages   <-chan string
 	csrs       chan<- *x509.CertificateRequest
 	certs      <-chan []*x509.Certificate
 	stop       chan<- struct{}
+	sysdesc    chan<- sysdesc
 }
 
 func mqttRunOnce(
 	params mqttparams,
-	didconnect chan<- struct{},
+	didconnect chan<- mqttdidconnect,
 	messages chan<- string,
 	stop <-chan struct{},
+	sysdesc <-chan sysdesc,
 	csrsIn <-chan *x509.CertificateRequest,
 	certsOut chan<- []*x509.Certificate) {
 
@@ -59,6 +67,7 @@ func mqttRunOnce(
 
 	topicCert := fmt.Sprintf("joonos/%s/cert", mqttName)
 	topicCsr := fmt.Sprintf("joonos/%s/csr", mqttName)
+	topicSysdesc := fmt.Sprintf("joonos/%s/status/description", mqttName)
 
 	opts.SetAutoReconnect(true)
 	opts.SetUsername(mqttName)
@@ -72,7 +81,9 @@ func mqttRunOnce(
 
 			certsOut <- certs
 		}).Wait()
-		didconnect <- struct{}{}
+		didconnect <- mqttdidconnect{
+			provisioning: params.provisioning,
+		}
 		messages <- fmt.Sprintf("Connected and subscribed.")
 	})
 
@@ -97,6 +108,11 @@ func mqttRunOnce(
 	for keepgoing {
 		messages <- fmt.Sprintf("Waiting for stuff")
 		select {
+		case desc := <-sysdesc:
+			payload, err := json.Marshal(&desc)
+			if err == nil {
+				client.Publish(topicSysdesc, 1, true, payload)
+			}
 		case csr := <-csrsIn:
 			payload := []byte{}
 			if csr != nil {
@@ -117,18 +133,28 @@ func mqttRunOnce(
 }
 
 func mqttStartNode() mqttservice {
-	didconnect := make(chan struct{})
+	didconnect := make(chan mqttdidconnect)
 	params := make(chan mqttparams)
 	messages := make(chan string, 50)
 	csrs := make(chan *x509.CertificateRequest)
 	certs := make(chan []*x509.Certificate)
+	sysdescs := make(chan sysdesc)
 	stop := make(chan struct{})
 
 	go func() {
 		parameters := <-params
 		for {
 			stopCurrent := make(chan struct{})
-			go mqttRunOnce(parameters, didconnect, messages, stopCurrent, csrs, certs)
+			go mqttRunOnce(
+				parameters,
+				didconnect,
+				messages,
+				stopCurrent,
+				sysdescs,
+				csrs,
+				certs,
+			)
+
 			parameters = <-params
 			stopCurrent <- struct{}{}
 		}
@@ -141,6 +167,7 @@ func mqttStartNode() mqttservice {
 		csrs:       csrs,
 		certs:      certs,
 		stop:       stop,
+		sysdesc:    sysdescs,
 	}
 }
 

@@ -39,13 +39,17 @@ func runWithConfig(configPath string) error {
 
 	for {
 		select {
-		case <-mqttchans.didconnect:
+		case didconnect := <-mqttchans.didconnect:
 			renewDuration := state.certRenewTime()
 			if renewDuration > time.Second {
 				// Supposedly we intend to keep the current certificate for
 				// some time, so let's be nice and clear out any dangling
 				// previous CSR.
 				mqttchans.csrs <- nil
+			}
+
+			if !didconnect.provisioning {
+				mqttchans.sysdesc <- sysdescLoad()
 			}
 
 			// Could be rather immediately, or also quite some time in

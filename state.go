@@ -157,9 +157,10 @@ func (s *state) csr() (*x509.CertificateRequest, error) {
 
 func (s state) mqttparams() mqttparams {
 	return mqttparams{
-		nodename: s.nodename,
-		server:   s.config.Mqttsrv,
-		tlsconf:  s.tlsconfig(),
+		provisioning: s.nodecert == nil,
+		nodename:     s.nodename,
+		server:       s.config.Mqttsrv,
+		tlsconf:      s.tlsconfig(),
 	}
 }
 
