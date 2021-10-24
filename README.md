@@ -18,6 +18,11 @@ where MQTT is used anyway.
 It might be reasonably simple to add some other mechanism directly
 over TLS.
 
+## JSON over MQTT in early messages
+Some other representations for data are more efficient and possibly
+more robust as well, but at least in the initial stages JSON has
+some advantages that stem from its convenient extensibility.
+
 ## Implement in Go
 Go is not necessarily the prettiest programming language in existence,
 but it is one option that meets these:
