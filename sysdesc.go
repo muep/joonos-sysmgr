@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+
+	"golang.org/x/sys/unix"
 )
 
 var sysdescSysmgrversion string = "0.0"
@@ -18,6 +20,18 @@ type sysdesc struct {
 
 const notAvailable = "(not available)"
 
+func sysdescStringFromBytesSlice(slice []byte) string {
+	strLen := len(slice)
+	for n, b := range slice {
+		if b == 0 {
+			strLen = n
+			break
+		}
+	}
+
+	return string(slice[:strLen])
+}
+
 func sysdescLoad() sysdesc {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -30,8 +44,16 @@ func sysdescLoad() sysdesc {
 		osr.Version = notAvailable
 	}
 
+	utsname := unix.Utsname{}
+
 	kernelVer := notAvailable
 	arch := notAvailable
+
+	err = unix.Uname(&utsname)
+	if err == nil {
+		kernelVer = sysdescStringFromBytesSlice(utsname.Release[:])
+		arch = sysdescStringFromBytesSlice(utsname.Machine[:])
+	}
 
 	return sysdesc{
 		Hostname:      hostname,
