@@ -41,12 +41,12 @@ func strWithoutPrefixAndSuffix(snl string, prefix string, suffix string) string 
 	)
 }
 
-func meminfoLoad() meminfo {
+func meminfoLoad() (meminfo, error) {
 	res := meminfo{}
 
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
-		return res
+		return res, err
 	}
 	defer f.Close()
 
@@ -94,5 +94,5 @@ func meminfoLoad() meminfo {
 		}
 	}
 
-	return res
+	return res, nil
 }

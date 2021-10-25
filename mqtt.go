@@ -40,6 +40,7 @@ type mqttservice struct {
 	certs      <-chan []*x509.Certificate
 	stop       chan<- struct{}
 	sysdesc    chan<- sysdesc
+	sysstat    chan<- sysstat
 }
 
 func mqttRunOnce(
@@ -48,6 +49,7 @@ func mqttRunOnce(
 	messages chan<- string,
 	stop <-chan struct{},
 	sysdesc <-chan sysdesc,
+	sysstat <-chan sysstat,
 	csrsIn <-chan *x509.CertificateRequest,
 	certsOut chan<- []*x509.Certificate) {
 
@@ -68,6 +70,7 @@ func mqttRunOnce(
 	topicCert := fmt.Sprintf("joonos/%s/cert", mqttName)
 	topicCsr := fmt.Sprintf("joonos/%s/csr", mqttName)
 	topicSysdesc := fmt.Sprintf("joonos/%s/status/description", mqttName)
+	topicSysstat := fmt.Sprintf("joonos/%s/status/stat", mqttName)
 
 	opts.SetAutoReconnect(true)
 	opts.SetUsername(mqttName)
@@ -113,6 +116,13 @@ func mqttRunOnce(
 			if err == nil {
 				client.Publish(topicSysdesc, 1, true, payload)
 			}
+		case stat := <-sysstat:
+			if !params.provisioning {
+				payload, err := json.Marshal(&stat)
+				if err == nil {
+					client.Publish(topicSysstat, 1, true, payload)
+				}
+			}
 		case csr := <-csrsIn:
 			payload := []byte{}
 			if csr != nil {
@@ -139,6 +149,7 @@ func mqttStartNode() mqttservice {
 	csrs := make(chan *x509.CertificateRequest)
 	certs := make(chan []*x509.Certificate)
 	sysdescs := make(chan sysdesc)
+	sysstats := make(chan sysstat)
 	stop := make(chan struct{})
 
 	go func() {
@@ -151,6 +162,7 @@ func mqttStartNode() mqttservice {
 				messages,
 				stopCurrent,
 				sysdescs,
+				sysstats,
 				csrs,
 				certs,
 			)
@@ -168,6 +180,7 @@ func mqttStartNode() mqttservice {
 		certs:      certs,
 		stop:       stop,
 		sysdesc:    sysdescs,
+		sysstat:    sysstats,
 	}
 }
 
