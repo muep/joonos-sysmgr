@@ -55,6 +55,12 @@ func sysdescLoad() sysdesc {
 		arch = sysdescStringFromBytesSlice(utsname.Machine[:])
 	}
 
+	var memtotal uint32 = 0
+	meminfo, err := meminfoLoad()
+	if err == nil {
+		memtotal = meminfo.MemTotal
+	}
+
 	return sysdesc{
 		Hostname:      hostname,
 		SysmgrVersion: sysdescSysmgrversion,
@@ -62,6 +68,6 @@ func sysdescLoad() sysdesc {
 		OsVersion:     osr.Version,
 		OsKernelVer:   kernelVer,
 		OsArch:        arch,
-		RamSize:       meminfoLoad().MemTotal,
+		RamSize:       memtotal,
 	}
 }

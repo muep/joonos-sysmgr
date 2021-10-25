@@ -37,6 +37,16 @@ func runWithConfig(configPath string) error {
 
 	var renewcert <-chan time.Time
 
+	go func() {
+		for {
+			stat, err := sysstatGet()
+			if err == nil {
+				mqttchans.sysstat <- stat
+			}
+			time.Sleep(time.Minute)
+		}
+	}()
+
 	for {
 		select {
 		case didconnect := <-mqttchans.didconnect:
