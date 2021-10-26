@@ -64,7 +64,7 @@ func runWithArgsAndSubcommands(args []string, subcmds []*subcommand) error {
 
 	err := subcmd.flagset.Parse(args[2:])
 	if err != nil {
-		return fmt.Errorf("Failed to parse arguments: %w", err)
+		return fmt.Errorf("failed to parse arguments: %w", err)
 	}
 
 	return subcmd.run()

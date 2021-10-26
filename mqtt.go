@@ -87,7 +87,7 @@ func mqttRunOnce(
 		didconnect <- mqttdidconnect{
 			provisioning: params.provisioning,
 		}
-		messages <- fmt.Sprintf("Connected and subscribed.")
+		messages <- "Connected and subscribed."
 	})
 
 	opts.SetConnectionAttemptHandler(func(broker *url.URL, tlsCfg *tls.Config) *tls.Config {
@@ -108,8 +108,8 @@ func mqttRunOnce(
 	messages <- fmt.Sprintf("Connected to %s as %s", params.server, mqttName)
 
 	keepgoing := true
+	messages <- "Entering the MQTT main loop"
 	for keepgoing {
-		messages <- fmt.Sprintf("Waiting for stuff")
 		select {
 		case desc := <-sysdesc:
 			payload, err := json.Marshal(&desc)
@@ -139,6 +139,7 @@ func mqttRunOnce(
 		}
 	}
 
+	messages <- "Asking MQTT client to disconnect"
 	client.Disconnect(0)
 }
 
@@ -249,12 +250,12 @@ func mqttConnectSubcmd() *subcommand {
 func mqttConnectSubcmdWithConfig(configPath string) error {
 	config, err := configLoad(configPath)
 	if err != nil {
-		return fmt.Errorf("Failed to load config: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	state, err := stateLoad(config)
 	if err != nil {
-		return fmt.Errorf("Failed to load state: %w", err)
+		return fmt.Errorf("failed to load state: %w", err)
 	}
 
 	connectionLostChannel := make(chan mqttconlost)
