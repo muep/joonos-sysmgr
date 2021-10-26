@@ -14,26 +14,25 @@ import (
 
 func certCheckKeyMatch(cert *x509.Certificate, key interface{}) error {
 	if key == nil {
-		return fmt.Errorf("Key is not set")
+		return fmt.Errorf("key is not set")
 	}
 
 	if cert == nil {
-		return fmt.Errorf("Main cert is not set")
+		return fmt.Errorf("main cert is not set")
 	}
 
 	rsakey, isRsakey := key.(*rsa.PrivateKey)
 	if !isRsakey {
-		return fmt.Errorf("Check is only implemented for RSA keys")
+		return fmt.Errorf("check is only implemented for RSA keys")
 	}
 
 	switch pub := cert.PublicKey.(type) {
 	case *rsa.PublicKey:
 		if pub.N.Cmp(rsakey.N) != 0 {
-			return fmt.Errorf("Private key does not match")
+			return fmt.Errorf("private key does not match")
 		}
-		break
 	default:
-		return fmt.Errorf("Expected cert with an RSA key")
+		return fmt.Errorf("expected cert with an RSA key")
 	}
 
 	return nil
@@ -51,14 +50,14 @@ func certDecodePem(pemBytes []byte) ([]*x509.Certificate, error) {
 
 		if block.Type != expectedType {
 			return nil, fmt.Errorf(
-				"Expected PEM block type %s, got %s",
+				"expected PEM block type %s, got %s",
 				expectedType,
 				block.Type)
 		}
 
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse certificate: %w", err)
+			return nil, fmt.Errorf("failed to parse certificate: %w", err)
 		}
 
 		res = append(res, cert)
@@ -125,7 +124,7 @@ func certLoadOneFromPath(path string) (*x509.Certificate, error) {
 
 	if certCnt != 1 {
 		return nil, fmt.Errorf(
-			"Expected %s to contain one certificate, got %d",
+			"expected %s to contain one certificate, got %d",
 			path,
 			certCnt,
 		)
@@ -141,17 +140,17 @@ func certShow(cert *x509.Certificate) {
 func certShowFromPath(path string, cacertPath string) error {
 	cacert, err := certLoadOneFromPath(cacertPath)
 	if err != nil {
-		return fmt.Errorf("Failed to load CA cert from %s: %w", cacertPath, err)
+		return fmt.Errorf("failed to load CA cert from %s: %w", cacertPath, err)
 	}
 
 	certificates, err := certLoadFromPath(path)
 	if err != nil {
-		return fmt.Errorf("Failed to load certs from %s: %w", path, err)
+		return fmt.Errorf("failed to load certs from %s: %w", path, err)
 	}
 
 	chain, err := certVerifyChain(certificates, cacert)
 	if err != nil {
-		return fmt.Errorf("Failed to verify certs from %s, %s: %w", path, cacertPath, err)
+		return fmt.Errorf("failed to verify certs from %s, %s: %w", path, cacertPath, err)
 	}
 
 	for _, cert := range chain {
@@ -181,7 +180,7 @@ func certShowSubcommand() *subcommand {
 
 	run := func() error {
 		if len(*certIn) == 0 {
-			return fmt.Errorf("The -in parameter is required")
+			return fmt.Errorf("the -in parameter is required")
 		}
 		return certShowFromPath(*certIn, *cacertIn)
 	}
@@ -223,11 +222,11 @@ func certVerifyLeafIntermediatesCa(
 
 	chains, err := leaf.Verify(opts)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to verify the supplied certificate: %w", err)
+		return nil, fmt.Errorf("failed to verify the supplied certificate: %w", err)
 	}
 
 	if len(chains) != 1 {
-		return nil, fmt.Errorf("Expected one chain, got %d", len(chains))
+		return nil, fmt.Errorf("expected one chain, got %d", len(chains))
 	}
 
 	chain := chains[0]
@@ -238,7 +237,7 @@ func certVerifyLeafIntermediatesCa(
 			certShow(c)
 		}
 		return nil, fmt.Errorf(
-			"Expected %d certs in the chain, got %d",
+			"expected %d certs in the chain, got %d",
 			expectedChainLen,
 			len(chain),
 		)
@@ -251,7 +250,7 @@ func certWriteChain(dest string, certs []*x509.Certificate) error {
 	certfile, err := os.Create(dest)
 	if err != nil {
 		return fmt.Errorf(
-			"Failed to create %s: %w",
+			"failed to create %s: %w",
 			dest,
 			err,
 		)
@@ -266,6 +265,13 @@ func certWriteChain(dest string, certs []*x509.Certificate) error {
 		}
 
 		err = pem.Encode(certfile, &certblock)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to code PEM data to %s: %w",
+				dest,
+				err,
+			)
+		}
 	}
 
 	return nil
@@ -274,7 +280,7 @@ func certWriteChain(dest string, certs []*x509.Certificate) error {
 func certWriteKey(dest string, key interface{}) error {
 	keybytes, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal key: %w", err)
+		return fmt.Errorf("failed to marshal key: %w", err)
 	}
 
 	keyblock := pem.Block{
@@ -285,7 +291,7 @@ func certWriteKey(dest string, key interface{}) error {
 	keyfile, err := os.Create(dest)
 	if err != nil {
 		return fmt.Errorf(
-			"Failed to create %s: %w",
+			"failed to create %s: %w",
 			dest,
 			err,
 		)
@@ -295,7 +301,7 @@ func certWriteKey(dest string, key interface{}) error {
 
 	err = pem.Encode(keyfile, &keyblock)
 	if err != nil {
-		return fmt.Errorf("Failed to encode key to %s: %w", dest, err)
+		return fmt.Errorf("failed to encode key to %s: %w", dest, err)
 	}
 
 	return nil
