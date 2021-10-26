@@ -55,7 +55,7 @@ func caLoadSigncert(signcertpath string, signkeypath string) (*x509.Certificate,
 
 	block, rest := pem.Decode(signcertPem)
 	if len(rest) > 0 {
-		return nil, nil, fmt.Errorf("Trailing garbage in %s", signcertpath)
+		return nil, nil, fmt.Errorf("trailing garbage in %s", signcertpath)
 	}
 
 	signcert, err := x509.ParseCertificate(block.Bytes)
@@ -65,7 +65,7 @@ func caLoadSigncert(signcertpath string, signkeypath string) (*x509.Certificate,
 
 	block, rest = pem.Decode(signkeyPem)
 	if len(rest) > 0 {
-		return nil, nil, fmt.Errorf("Trailing garbage in %s", signkeypath)
+		return nil, nil, fmt.Errorf("trailing garbage in %s", signkeypath)
 	}
 
 	signkey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
@@ -80,7 +80,7 @@ func caRun(configpath string, seconds int64) error {
 	configbytes, err := ioutil.ReadFile(configpath)
 	if err != nil {
 		return fmt.Errorf(
-			"Failed to read %s: %w",
+			"failed to read %s: %w",
 			configpath,
 			err,
 		)
@@ -90,7 +90,7 @@ func caRun(configpath string, seconds int64) error {
 	err = json.Unmarshal(configbytes, &config)
 	if err != nil {
 		return fmt.Errorf(
-			"Failed to parse JSON from %s: %w",
+			"failed to parse JSON from %s: %w",
 			configpath,
 			err,
 		)
@@ -99,7 +99,7 @@ func caRun(configpath string, seconds int64) error {
 	rootcert, err := certLoadOneFromPath(config.Cacert)
 	if err != nil {
 		return fmt.Errorf(
-			"Failed to load root CA cert from %s: %w",
+			"failed to load root CA cert from %s: %w",
 			config.Cacert,
 			err,
 		)
@@ -108,7 +108,7 @@ func caRun(configpath string, seconds int64) error {
 	tlscert, err := tls.LoadX509KeyPair(config.Tlscert, config.Tlskey)
 	if err != nil {
 		return fmt.Errorf(
-			"Failed to load key pair for TLS from %s, %s: %w",
+			"failed to load key pair for TLS from %s, %s: %w",
 			config.Tlscert,
 			config.Tlskey,
 			err,
@@ -139,7 +139,7 @@ func caRun(configpath string, seconds int64) error {
 	clientConnect.Wait()
 	err = clientConnect.Error()
 	if err != nil {
-		fmt.Printf("Failed to connect: %s\n", err)
+		fmt.Printf("failed to connect: %s\n", err)
 		return err
 	}
 
@@ -147,7 +147,7 @@ func caRun(configpath string, seconds int64) error {
 
 	csrSub := client.Subscribe("joonos/+/csr", 1, func(c mqtt.Client, m mqtt.Message) {
 		if len(m.Payload()) == 0 {
-			fmt.Println("Ignoring empty message on", m.Topic())
+			fmt.Println("ignoring empty message on", m.Topic())
 			return
 		}
 
@@ -211,11 +211,11 @@ func caSenderFromTopic(topic string) (string, error) {
 	prefix := "joonos/"
 	suffix := "/csr"
 	if !strings.HasPrefix(topic, prefix) {
-		return "", fmt.Errorf("Expected topic to start with %s", prefix)
+		return "", fmt.Errorf("expected topic to start with %s", prefix)
 	}
 
 	if !strings.HasSuffix(topic, suffix) {
-		return "", fmt.Errorf("Expected topic to end with %s", suffix)
+		return "", fmt.Errorf("expected topic to end with %s", suffix)
 	}
 
 	return strings.TrimPrefix(strings.TrimSuffix(topic, suffix), prefix), nil
@@ -282,12 +282,12 @@ func caSign(
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to issue certificate: %w", err)
+		return nil, fmt.Errorf("failed to issue certificate: %w", err)
 	}
 
 	parsedCert, err := x509.ParseCertificate(newcert)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse freshly issued certificate: %w", err)
+		return nil, fmt.Errorf("failed to parse freshly issued certificate: %w", err)
 	}
 
 	return parsedCert, nil
