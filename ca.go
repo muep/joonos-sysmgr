@@ -3,7 +3,6 @@ package main
 import (
 	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -19,11 +18,6 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
-
-type ca struct {
-	privkey rsa.PrivateKey
-	pubkey  rsa.PublicKey
-}
 
 type cacsr struct {
 	from string
