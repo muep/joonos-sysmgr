@@ -266,6 +266,13 @@ func certWriteChain(dest string, certs []*x509.Certificate) error {
 		}
 
 		err = pem.Encode(certfile, &certblock)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to code PEM data to %s: %w",
+				dest,
+				err,
+			)
+		}
 	}
 
 	return nil
