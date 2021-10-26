@@ -33,12 +33,12 @@ func offlineReadCerts(f io.Reader) ([]*x509.Certificate, error) {
 func offlineProvision(configpath string) error {
 	config, err := configLoad(configpath)
 	if err != nil {
-		return fmt.Errorf("Failed to load configuration: %w", err)
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
 	state, err := stateLoad(config)
 	if err != nil {
-		return fmt.Errorf("Failed to initialize state: %w", err)
+		return fmt.Errorf("failed to initialize state: %w", err)
 	}
 
 	if state.nodecert != nil {
@@ -63,7 +63,7 @@ func offlineProvision(configpath string) error {
 
 	certs, err := offlineReadCerts(os.Stdin)
 	if err != nil {
-		return fmt.Errorf("Failed to read certificates from stdin: %w", err)
+		return fmt.Errorf("failed to read certificates from stdin: %w", err)
 	}
 
 	leaf := certs[0]
@@ -71,7 +71,7 @@ func offlineProvision(configpath string) error {
 
 	err = state.setCertificate(leaf, intermediates)
 	if err != nil {
-		return fmt.Errorf("Failed to install certificates: %w", err)
+		return fmt.Errorf("failed to install certificates: %w", err)
 	}
 
 	return nil

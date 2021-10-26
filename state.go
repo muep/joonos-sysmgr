@@ -30,7 +30,7 @@ func stateLoad(config config) (state, error) {
 	err := fsCheckDirPresent(config.Datadir)
 	if err != nil {
 		return res, fmt.Errorf(
-			"Failed to ensure presence of %s: %w",
+			"failed to ensure presence of %s: %w",
 			config.Datadir,
 			err,
 		)
@@ -39,7 +39,7 @@ func stateLoad(config config) (state, error) {
 	cacert, err := certLoadOneFromPath(config.Cacert)
 	if err != nil {
 		return res, fmt.Errorf(
-			"Failed to load CA root certificate from %s: %w",
+			"failed to load CA root certificate from %s: %w",
 			config.Cacert,
 			err,
 		)
@@ -48,7 +48,7 @@ func stateLoad(config config) (state, error) {
 	provcert, err := tls.LoadX509KeyPair(config.Provcert, config.Provkey)
 	if err != nil {
 		return res, fmt.Errorf(
-			"Failed to load provisioning certificate from %s, %s: %w",
+			"failed to load provisioning certificate from %s, %s: %w",
 			config.Provcert,
 			config.Provkey,
 			err,
@@ -57,7 +57,7 @@ func stateLoad(config config) (state, error) {
 	provcertLeaf, err := x509.ParseCertificate(provcert.Certificate[0])
 	if err != nil {
 		return res, fmt.Errorf(
-			"Failed to parse leaf certificate from %s: %w",
+			"failed to parse leaf certificate from %s: %w",
 			config.Provcert,
 			err,
 		)
@@ -109,7 +109,7 @@ func stateLoadNodecert(certpath string, keypath string) (*tls.Certificate, error
 		// in case it turns out to be useful. The remaining
 		// checks here can not be done.
 		return &nodecert, fmt.Errorf(
-			"Failed to parse leaf certificate from %s: %w",
+			"failed to parse leaf certificate from %s: %w",
 			certpath,
 			err,
 		)
@@ -121,7 +121,7 @@ func stateLoadNodecert(certpath string, keypath string) (*tls.Certificate, error
 
 	notAfter := nodecert.Leaf.NotAfter
 	if time.Now().After(notAfter) {
-		return &nodecert, fmt.Errorf("Certificate expired on %s", notAfter)
+		return &nodecert, fmt.Errorf("certificate expired on %s", notAfter)
 	}
 
 	return &nodecert, nil
@@ -167,22 +167,22 @@ func (s state) mqttparams() mqttparams {
 func (s *state) setCertificate(cert *x509.Certificate, intermediates []*x509.Certificate) error {
 	chain, err := certVerifyLeafIntermediatesCa(cert, intermediates, s.cacert)
 	if err != nil {
-		return fmt.Errorf("Failed to verify the supplied certificate: %w", err)
+		return fmt.Errorf("failed to verify the supplied certificate: %w", err)
 	}
 
 	err = certCheckKeyMatch(cert, s.csrkey)
 	if err != nil {
-		return fmt.Errorf("Could not match certificate to CSR key: %w", err)
+		return fmt.Errorf("could not match certificate to CSR key: %w", err)
 	}
 
 	err = certWriteKey(s.config.Nodekey(), s.csrkey)
 	if err != nil {
-		return fmt.Errorf("Failed to store key: %w", err)
+		return fmt.Errorf("failed to store key: %w", err)
 	}
 
 	err = certWriteChain(s.config.Nodecert(), chain[:len(chain)-1])
 	if err != nil {
-		return fmt.Errorf("Failed to store cert chain: %w", err)
+		return fmt.Errorf("failed to store cert chain: %w", err)
 	}
 
 	// Reload the certificates right away
@@ -239,12 +239,12 @@ func (s state) certRenewTime() time.Duration {
 func stateShow(configpath string) error {
 	config, err := configLoad(configpath)
 	if err != nil {
-		return fmt.Errorf("Failed to load config from %s: %w", configpath, err)
+		return fmt.Errorf("failed to load config from %s: %w", configpath, err)
 	}
 
 	state, err := stateLoad(config)
 	if err != nil {
-		return fmt.Errorf("Failed to load state using config from %s: %w", configpath, err)
+		return fmt.Errorf("failed to load state using config from %s: %w", configpath, err)
 	}
 
 	fmt.Printf("State for %s [%s]\n", state.nodename, configpath)

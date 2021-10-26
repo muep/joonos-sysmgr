@@ -20,7 +20,7 @@ func osreleaseLoad() (osrelease, error) {
 	var res osrelease
 	file, err := os.Open(osreleaseFilename)
 	if err != nil {
-		return res, fmt.Errorf("Failed to open %s: %w", osreleaseFilename, err)
+		return res, fmt.Errorf("failed to open %s: %w", osreleaseFilename, err)
 	}
 	defer file.Close()
 

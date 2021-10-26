@@ -11,13 +11,13 @@ func runWithConfig(configPath string) error {
 
 	config, err := configLoad(configPath)
 	if err != nil {
-		return fmt.Errorf("Failed to load configuration: %w", err)
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 	fmt.Println("Configuration loaded. Initializing state...")
 
 	state, err := stateLoad(config)
 	if err != nil {
-		return fmt.Errorf("Failed to initialize state: %w", err)
+		return fmt.Errorf("failed to initialize state: %w", err)
 	}
 
 	fmt.Println("State initialized")
