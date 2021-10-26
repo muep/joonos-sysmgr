@@ -31,7 +31,6 @@ func certCheckKeyMatch(cert *x509.Certificate, key interface{}) error {
 		if pub.N.Cmp(rsakey.N) != 0 {
 			return fmt.Errorf("Private key does not match")
 		}
-		break
 	default:
 		return fmt.Errorf("Expected cert with an RSA key")
 	}
