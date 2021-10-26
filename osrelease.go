@@ -14,7 +14,7 @@ type osrelease struct {
 
 const osreleaseFilename string = "/etc/os-release"
 const osreleasePrefixName string = "ID="
-const osreleasePrefixVersion string = "VERION_ID="
+const osreleasePrefixVersion string = "VERSION_ID="
 
 func osreleaseLoad() (osrelease, error) {
 	var res osrelease
