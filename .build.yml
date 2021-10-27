@@ -1,0 +1,14 @@
+image: debian/bookworm
+packages:
+  - golang
+  - golang-1.17
+  - mosquitto
+sources:
+  - https://git.sr.ht/~muep/joonos-sysmgr
+tasks:
+  - build: |
+      cd joonos-sysmgr
+      go build
+  - test: |
+      cd joonos-sysmgr
+      env PATH=$PATH:/usr/sbin go test
