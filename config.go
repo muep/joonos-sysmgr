@@ -6,12 +6,13 @@ import (
 )
 
 type config struct {
-	Cacert   string `json:"ca-cert"`
-	Provcert string `json:"provisioning-cert"`
-	Provkey  string `json:"provisioning-key"`
-	Datadir  string `json:"data-directory"`
-	Mqttsrv  string `json:"mqtt-server"`
-	Nodename string `json:"node-name"`
+	Cacert   string   `json:"ca-cert"`
+	Provcert string   `json:"provisioning-cert"`
+	Provkey  string   `json:"provisioning-key"`
+	Datadir  string   `json:"data-directory"`
+	Mqttsrv  string   `json:"mqtt-server"`
+	Nodename string   `json:"node-name"`
+	Upgrade  []string `json:"upgrade"`
 }
 
 func configLoad(path string) (config, error) {
