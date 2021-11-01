@@ -41,6 +41,7 @@ type mqttservice struct {
 	stop       chan<- struct{}
 	sysdesc    chan<- sysdesc
 	sysstat    chan<- sysstat
+	upgcmds    <-chan upgCommand
 }
 
 func mqttRunOnce(
@@ -50,6 +51,7 @@ func mqttRunOnce(
 	stop <-chan struct{},
 	sysdesc <-chan sysdesc,
 	sysstat <-chan sysstat,
+	upgcmds chan<- upgCommand,
 	csrsIn <-chan *x509.CertificateRequest,
 	certsOut chan<- []*x509.Certificate) {
 
@@ -71,6 +73,7 @@ func mqttRunOnce(
 	topicCsr := fmt.Sprintf("joonos/%s/csr", mqttName)
 	topicSysdesc := fmt.Sprintf("joonos/%s/status/description", mqttName)
 	topicSysstat := fmt.Sprintf("joonos/%s/status/stat", mqttName)
+	topicSwupdate := fmt.Sprintf("joonos/%s/upgrade", mqttName)
 
 	opts.SetAutoReconnect(true)
 	opts.SetUsername(mqttName)
@@ -84,6 +87,30 @@ func mqttRunOnce(
 
 			certsOut <- certs
 		}).Wait()
+
+		c.Subscribe(topicSwupdate, 1, func(c mqtt.Client, m mqtt.Message) {
+			var cmd upgCommand
+
+			err := json.Unmarshal(m.Payload(), &cmd)
+			if err != nil {
+				messages <- fmt.Sprintf("failed to read upgrade cmd: %v", err)
+				return
+			}
+
+			if len(cmd.Url) == 0 {
+				messages <- fmt.Sprintf("expected a non-empty URL")
+				return
+			}
+
+			if len(cmd.Nodes) > 0 {
+				if !sliceContains(cmd.Nodes, mqttName) {
+					return
+				}
+			}
+
+			upgcmds <- cmd
+		}).Wait()
+
 		didconnect <- mqttdidconnect{
 			provisioning: params.provisioning,
 		}
@@ -151,6 +178,7 @@ func mqttStartNode() mqttservice {
 	certs := make(chan []*x509.Certificate)
 	sysdescs := make(chan sysdesc)
 	sysstats := make(chan sysstat)
+	swupdates := make(chan upgCommand)
 	stop := make(chan struct{})
 
 	go func() {
@@ -164,6 +192,7 @@ func mqttStartNode() mqttservice {
 				stopCurrent,
 				sysdescs,
 				sysstats,
+				swupdates,
 				csrs,
 				certs,
 			)
@@ -182,6 +211,7 @@ func mqttStartNode() mqttservice {
 		stop:       stop,
 		sysdesc:    sysdescs,
 		sysstat:    sysstats,
+		upgcmds:    swupdates,
 	}
 }
 

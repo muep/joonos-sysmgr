@@ -91,6 +91,15 @@ func runWithConfig(configPath string) error {
 				mqttchans.params <- state.mqttparams()
 				renewcert = time.After(state.certRenewTime())
 			}
+		case upg := <-mqttchans.upgcmds:
+			if len(config.Upgrade) > 0 {
+				go upgrade(config.Upgrade, upg)
+			} else {
+				fmt.Printf(
+					"Got an upgrade command %v, but upgrade tool is not configured\n",
+					upg,
+				)
+			}
 		}
 	}
 }
