@@ -23,6 +23,10 @@ Some other representations for data are more efficient and possibly
 more robust as well, but at least in the initial stages JSON has
 some advantages that stem from its convenient extensibility.
 
+Another thing convenient about JSON-formatted messages is that they
+can easily be produced with a generic text editor and sent e.g.
+with `mosquitto_pub`.
+
 ## Implement in Go
 Go is not necessarily the prettiest programming language in existence,
 but it is one option that meets these:
