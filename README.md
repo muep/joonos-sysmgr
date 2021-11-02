@@ -1,14 +1,15 @@
-JoonOS system manager
+Joonos system manager
 
 # Introduction
-The system manager is especially intended to obtain per-node
-certificates which then can ben used to authenticate JoonOS nodes to
-an MQTT server.
+The system manager is a service whose primary tasks are:
+- Obtain per-node certificates which then can ben used to authenticate
+  Joonos nodes to an MQTT server.
+- Download and apply system updates
 
-Development of the program is hosted on [sourcehut](https://sr.ht/),
-with these resources:
-- [git repository](https://git.sr.ht/~muep/joonos-sysmgr)
-- [issue tracking](https://todo.sr.ht/~muep/joonos-sysmgr)
+In addition to these, the tool features some limited telemetry features.
+
+Development of the program is hosted on
+[Github](https://github.com/muep/joonos-sysmgr)
 
 # Design decisions
 ## Layer over MQTT
