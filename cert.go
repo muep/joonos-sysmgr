@@ -98,8 +98,16 @@ func certDescValidityPeriod(cert *x509.Certificate) string {
 
 func certKeyEqual(keya crypto.PublicKey, keyb crypto.PublicKey) bool {
 	rsakeya, isRsakey := keya.(*rsa.PublicKey)
+
 	if isRsakey {
-		return rsakeya.Equal(keyb)
+		rsakeyb, isRsakey := keyb.(*rsa.PublicKey)
+		if isRsakey {
+			sameN := rsakeya.N.Cmp(rsakeyb.N) == 0
+			sameE := rsakeya.E == rsakeyb.E
+			return sameN && sameE
+		} else {
+			return false
+		}
 	}
 
 	return false
