@@ -98,7 +98,7 @@ func mqttRunOnce(
 			}
 
 			if len(cmd.Url) == 0 {
-				messages <- fmt.Sprintf("expected a non-empty URL")
+				messages <- "expected a non-empty URL"
 				return
 			}
 
