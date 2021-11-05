@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -47,6 +48,7 @@ type mqttservice struct {
 func mqttRunOnce(
 	params mqttparams,
 	didconnect chan<- mqttdidconnect,
+	mqttfailed chan<- string,
 	messages chan<- string,
 	stop <-chan struct{},
 	sysdesc <-chan sysdesc,
@@ -131,8 +133,11 @@ func mqttRunOnce(
 	messages <- "Initiating connection"
 	connectToken := client.Connect()
 	connectToken.Wait()
-
-	messages <- fmt.Sprintf("Connected to %s as %s", params.server, mqttName)
+	err := connectToken.Error()
+	if err != nil {
+		mqttfailed <- fmt.Sprintf("failed to connect: %v", err)
+		return
+	}
 
 	keepgoing := true
 	messages <- "Entering the MQTT main loop"
@@ -152,14 +157,16 @@ func mqttRunOnce(
 			}
 		case csr := <-csrsIn:
 			payload := []byte{}
+
+			var msg string
 			if csr != nil {
 				payload = csr.Raw
-				messages <- fmt.Sprintf("Publishing CSR at %s", topicCsr)
+				msg = fmt.Sprintf("Published CSR at %s", topicCsr)
 			} else {
-				messages <- fmt.Sprintf("Clearing csr at %s", topicCsr)
+				msg = fmt.Sprintf("Cleared csr at %s", topicCsr)
 			}
 			client.Publish(topicCsr, 1, true, payload).Wait()
-			messages <- fmt.Sprintf("Published to %s", topicCsr)
+			messages <- msg
 		case <-stop:
 			messages <- "Closing down"
 			keepgoing = false
@@ -180,6 +187,7 @@ func mqttStartNode() mqttservice {
 	sysstats := make(chan sysstat)
 	swupdates := make(chan upgCommand)
 	stop := make(chan struct{})
+	mqttFailed := make(chan string)
 
 	go func() {
 		parameters := <-params
@@ -188,6 +196,7 @@ func mqttStartNode() mqttservice {
 			go mqttRunOnce(
 				parameters,
 				didconnect,
+				mqttFailed,
 				messages,
 				stopCurrent,
 				sysdescs,
@@ -197,8 +206,19 @@ func mqttStartNode() mqttservice {
 				certs,
 			)
 
-			parameters = <-params
-			stopCurrent <- struct{}{}
+			select {
+			case parameters = <-params:
+				stopCurrent <- struct{}{}
+			case failMsg := <-mqttFailed:
+				messages <- failMsg
+				waitDuration := 60 * time.Second
+				messages <- fmt.Sprintf(
+					"Waiting for %d before restarting",
+					waitDuration,
+				)
+				time.Sleep(waitDuration)
+			}
+
 		}
 	}()
 
