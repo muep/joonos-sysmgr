@@ -28,7 +28,7 @@ func sysstatGet() (sysstat, error) {
 	var sysinfo unix.Sysinfo_t
 	err := unix.Sysinfo(&sysinfo)
 	if err == nil {
-		res.Uptime = sysinfo.Uptime
+		res.Uptime = int64(sysinfo.Uptime)
 	}
 
 	var usage unix.Rusage

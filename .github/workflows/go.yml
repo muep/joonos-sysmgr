@@ -18,14 +18,23 @@ jobs:
       with:
         go-version: 1.14
 
-    - name: Build
-      run: go build -v ./...
+    - name: Build for amd64
+      run: env GOOS=linux GOARCH=amd64 go build -v -o joonos-sysmgr-amd64
+
+    - name: Build for armv6l
+      run: env GOOS=linux GOARCH=arm GOARM=6 go build -v -o joonos-sysmgr-armv6l
+
+    - name: Build for arm64
+      run: env GOOS=linux GOARCH=arm64 go build -v -o joonos-sysmgr-arm64
 
     - name: Test
       run: go test -v ./...
-      
+
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: joonos-sysmgr
-        path: joonos-sysmgr
+        path: |
+          joonos-sysmgr-amd64
+          joonos-sysmgr-armv6l
+          joonos-sysmgr-arm64
