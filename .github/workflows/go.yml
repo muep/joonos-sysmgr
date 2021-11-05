@@ -29,11 +29,11 @@ jobs:
 
     - name: Test
       run: go test -v ./...
-      
+
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: joonos-sysmgr-
+        name: joonos-sysmgr
         path: |
           joonos-sysmgr-amd64
           joonos-sysmgr-armv6l
