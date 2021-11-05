@@ -74,9 +74,7 @@ func runWithConfig(configPath string) error {
 			if err != nil {
 				fmt.Printf("Failed to generate CSR: %v\n", err)
 			} else {
-				fmt.Println("Pushing CSR to channel")
 				mqttchans.csrs <- csr
-				fmt.Println("Asked MQTT layer to to send a CSR")
 			}
 			// Will retry after some time, in case there is no reply
 			renewcert = time.After(time.Hour)

@@ -132,8 +132,6 @@ func mqttRunOnce(
 	connectToken := client.Connect()
 	connectToken.Wait()
 
-	messages <- fmt.Sprintf("Connected to %s as %s", params.server, mqttName)
-
 	keepgoing := true
 	messages <- "Entering the MQTT main loop"
 	for keepgoing {
@@ -152,14 +150,16 @@ func mqttRunOnce(
 			}
 		case csr := <-csrsIn:
 			payload := []byte{}
+
+			var msg string
 			if csr != nil {
 				payload = csr.Raw
-				messages <- fmt.Sprintf("Publishing CSR at %s", topicCsr)
+				msg = fmt.Sprintf("Published CSR at %s", topicCsr)
 			} else {
-				messages <- fmt.Sprintf("Clearing csr at %s", topicCsr)
+				msg = fmt.Sprintf("Cleared csr at %s", topicCsr)
 			}
 			client.Publish(topicCsr, 1, true, payload).Wait()
-			messages <- fmt.Sprintf("Published to %s", topicCsr)
+			messages <- msg
 		case <-stop:
 			messages <- "Closing down"
 			keepgoing = false
