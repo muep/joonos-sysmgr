@@ -135,7 +135,7 @@ func mqttRunOnce(
 	connectToken.Wait()
 	err := connectToken.Error()
 	if err != nil {
-		mqttfailed <- fmt.Sprint("failed to connect: %v", err)
+		mqttfailed <- fmt.Sprintf("failed to connect: %v", err)
 		return
 	}
 
