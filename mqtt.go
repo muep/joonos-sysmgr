@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -47,6 +48,7 @@ type mqttservice struct {
 func mqttRunOnce(
 	params mqttparams,
 	didconnect chan<- mqttdidconnect,
+	mqttfailed chan<- string,
 	messages chan<- string,
 	stop <-chan struct{},
 	sysdesc <-chan sysdesc,
@@ -131,6 +133,11 @@ func mqttRunOnce(
 	messages <- "Initiating connection"
 	connectToken := client.Connect()
 	connectToken.Wait()
+	err := connectToken.Error()
+	if err != nil {
+		mqttfailed <- fmt.Sprint("failed to connect: %v", err)
+		return
+	}
 
 	keepgoing := true
 	messages <- "Entering the MQTT main loop"
@@ -180,6 +187,7 @@ func mqttStartNode() mqttservice {
 	sysstats := make(chan sysstat)
 	swupdates := make(chan upgCommand)
 	stop := make(chan struct{})
+	mqttFailed := make(chan string)
 
 	go func() {
 		parameters := <-params
@@ -188,6 +196,7 @@ func mqttStartNode() mqttservice {
 			go mqttRunOnce(
 				parameters,
 				didconnect,
+				mqttFailed,
 				messages,
 				stopCurrent,
 				sysdescs,
@@ -197,8 +206,19 @@ func mqttStartNode() mqttservice {
 				certs,
 			)
 
-			parameters = <-params
-			stopCurrent <- struct{}{}
+			select {
+			case parameters = <-params:
+				stopCurrent <- struct{}{}
+			case failMsg := <-mqttFailed:
+				messages <- failMsg
+				waitDuration := 60 * time.Second
+				messages <- fmt.Sprintf(
+					"Waiting for %d before restarting",
+					waitDuration,
+				)
+				time.Sleep(waitDuration)
+			}
+
 		}
 	}()
 
