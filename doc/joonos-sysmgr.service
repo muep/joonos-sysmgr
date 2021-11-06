@@ -1,0 +1,10 @@
+[Unit]
+Description=Joonos system manager
+
+[Service]
+ExecStart=/usr/bin/joonos-sysmgr run -config /etc/joonos/joonos.conf
+User=joonos-sysmgr
+Group=joonos-sysmgr
+
+[Install]
+WantedBy=multi-user.target

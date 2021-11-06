@@ -1,0 +1,7 @@
+{
+    "ca-cert": "/etc/joonos/ca.cert.pem",
+    "provisioning-cert": "/etc/joonos/unprovisioned.cert.pem",
+    "provisioning-key": "/etc/joonos/unprovisioned.key.pem",
+    "data-directory": "/var/lib/joonos",
+    "mqtt-server": "tls://mqtt.example.com:8883"
+}
